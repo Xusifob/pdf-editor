@@ -153,15 +153,6 @@ docker compose up --build
 ```
 
 **Note**: The Docker Compose setup requires proper SSL certificate configuration for PyPI access. If you encounter SSL certificate errors during the build, use the local development setup described above.
-npm start
-```
-
-Make sure to set the `REACT_APP_API_URL` environment variable to point to your backend:
-
-```bash
-export REACT_APP_API_URL=http://localhost:8000
-npm start
-```
 
 ## API Endpoints
 

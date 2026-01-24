@@ -231,7 +231,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
                 <input
                   type="number"
                   value={editingField.x || 0}
-                  onChange={(e) => setEditingField({...editingField, x: parseFloat(e.target.value)})}
+                  onChange={(e) => setEditingField({...editingField, x: parseFloat(e.target.value) || 0})}
                   className="field-input"
                 />
               </div>
@@ -241,7 +241,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
                 <input
                   type="number"
                   value={editingField.y || 0}
-                  onChange={(e) => setEditingField({...editingField, y: parseFloat(e.target.value)})}
+                  onChange={(e) => setEditingField({...editingField, y: parseFloat(e.target.value) || 0})}
                   className="field-input"
                 />
               </div>
@@ -253,7 +253,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
                 <input
                   type="number"
                   value={editingField.width || 100}
-                  onChange={(e) => setEditingField({...editingField, width: parseFloat(e.target.value)})}
+                  onChange={(e) => setEditingField({...editingField, width: parseFloat(e.target.value) || 100})}
                   className="field-input"
                 />
               </div>
@@ -263,7 +263,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
                 <input
                   type="number"
                   value={editingField.height || 30}
-                  onChange={(e) => setEditingField({...editingField, height: parseFloat(e.target.value)})}
+                  onChange={(e) => setEditingField({...editingField, height: parseFloat(e.target.value) || 30})}
                   className="field-input"
                 />
               </div>
