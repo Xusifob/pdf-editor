@@ -1,0 +1,83 @@
+.pdf-upload {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.upload-area {
+  background: white;
+  border: 3px dashed #667eea;
+  border-radius: 12px;
+  padding: 3rem;
+  text-align: center;
+  width: 100%;
+  max-width: 600px;
+  transition: all 0.3s ease;
+}
+
+.upload-area.drag-over {
+  border-color: #28a745;
+  background: #f0f8ff;
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.upload-area h3 {
+  color: #333;
+  margin: 0 0 0.5rem 0;
+}
+
+.upload-area p {
+  color: #666;
+  margin: 0 0 1.5rem 0;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-label {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.selected-file {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.selected-file p {
+  margin: 0.25rem 0;
+  color: #333;
+}
+
+.file-size {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.error-message {
+  background: #dc3545;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+}
+
+.upload-button {
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.upload-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
