@@ -113,6 +113,24 @@ async def upload_pdf(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 
+@app.get("/api/pdf/list")
+async def list_pdfs():
+    """
+    List all uploaded PDFs
+    """
+    return {
+        "pdfs": [
+            {
+                "pdf_id": pdf_info["pdf_id"],
+                "filename": pdf_info["filename"],
+                "num_pages": pdf_info["num_pages"],
+                "num_fields": len(pdf_info["fields"])
+            }
+            for pdf_info in pdf_storage.values()
+        ]
+    }
+
+
 @app.get("/api/pdf/{pdf_id}")
 async def get_pdf_info(pdf_id: str):
     """
@@ -170,24 +188,6 @@ async def delete_field(pdf_id: str, field_name: str):
     pdf_info["fields"] = [f for f in pdf_info["fields"] if f["name"] != field_name]
     
     return {"message": f"Field {field_name} deleted successfully"}
-
-
-@app.get("/api/pdf/list")
-async def list_pdfs():
-    """
-    List all uploaded PDFs
-    """
-    return {
-        "pdfs": [
-            {
-                "pdf_id": pdf_info["pdf_id"],
-                "filename": pdf_info["filename"],
-                "num_pages": pdf_info["num_pages"],
-                "num_fields": len(pdf_info["fields"])
-            }
-            for pdf_info in pdf_storage.values()
-        ]
-    }
 
 
 if __name__ == "__main__":
