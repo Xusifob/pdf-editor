@@ -69,6 +69,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     try:
         # Read the PDF file
         contents = await file.read()
+        # pypdf.PdfReader will validate the PDF format and raise an exception if invalid
         pdf_reader = pypdf.PdfReader(io.BytesIO(contents))
         
         # Generate a simple ID (in production, use UUID or similar)

@@ -274,7 +274,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
               <input
                 type="number"
                 value={editingField.page || 0}
-                onChange={(e) => setEditingField({...editingField, page: parseInt(e.target.value)})}
+                onChange={(e) => setEditingField({...editingField, page: parseInt(e.target.value) || 0})}
                 className="field-input"
               />
             </div>
