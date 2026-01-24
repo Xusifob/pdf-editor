@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pdf-editor-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - pdf-editor-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pdf-editor-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - pdf-editor-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  pdf-editor-network:
+    driver: bridge
