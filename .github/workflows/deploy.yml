@@ -1,0 +1,82 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  SSH_HOST: ${{ vars.SSH_HOST }}
+  SSH_USER: ${{ vars.SSH_USER }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        run: |
+          docker-compose build
+
+      - name: Save Docker images
+        run: |
+          docker save -o backend-image.tar pdf-editor-backend:latest || docker save -o backend-image.tar $(docker images --format "{{.Repository}}:{{.Tag}}" | grep backend | head -n1)
+          docker save -o frontend-image.tar pdf-editor-frontend:latest || docker save -o frontend-image.tar $(docker images --format "{{.Repository}}:{{.Tag}}" | grep frontend | head -n1)
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy files to server
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            backend-image.tar \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            frontend-image.tar \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            docker-compose.yml \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << 'ENDSSH'
+            # Load Docker images
+            docker load -i /tmp/backend-image.tar
+            docker load -i /tmp/frontend-image.tar
+            
+            # Stop existing containers if running
+            cd /opt/pdf-editor || mkdir -p /opt/pdf-editor
+            docker-compose down 2>/dev/null || true
+            
+            # Copy new docker-compose file
+            cp /tmp/docker-compose.yml /opt/pdf-editor/
+            
+            # Start new containers
+            cd /opt/pdf-editor
+            docker-compose up -d
+            
+            # Cleanup
+            rm -f /tmp/backend-image.tar /tmp/frontend-image.tar /tmp/docker-compose.yml
+            
+            # Show status
+            docker-compose ps
+          ENDSSH
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
