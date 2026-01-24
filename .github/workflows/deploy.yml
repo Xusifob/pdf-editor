@@ -29,19 +29,22 @@ jobs:
 
       - name: Save Docker images
         run: |
-          # Get project name and construct image names
-          PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]//g')
+          # Docker Compose uses the project directory name as prefix
+          # Images are typically named: <project>-<service> or <project>_<service>
+          PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g')
           
-          # Try multiple naming patterns
-          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?backend|backend[-_]?${PROJECT_NAME}" | head -n1)
-          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?frontend|frontend[-_]?${PROJECT_NAME}" | head -n1)
+          # Try to find images - docker compose typically uses project-service naming
+          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]backend" | head -n1)
+          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]frontend" | head -n1)
           
           # Validate that images were found
           if [ -z "$BACKEND_IMAGE" ] || [ -z "$FRONTEND_IMAGE" ]; then
             echo "Error: Could not find backend or frontend Docker images"
             echo "Project name: $PROJECT_NAME"
-            echo "Backend image: $BACKEND_IMAGE"
-            echo "Frontend image: $FRONTEND_IMAGE"
+            echo "Expected pattern: ${PROJECT_NAME}-backend or ${PROJECT_NAME}_backend"
+            echo "Backend image found: $BACKEND_IMAGE"
+            echo "Frontend image found: $FRONTEND_IMAGE"
+            echo ""
             echo "Available images:"
             docker images
             exit 1
@@ -67,21 +70,23 @@ jobs:
 
       - name: Deploy on server
         run: |
+          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
           ssh -i ~/.ssh/deploy_key \
-            ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << 'ENDSSH'
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
+            bash -s << EOF
             # Load Docker images
             docker load -i /tmp/backend-image.tar
             docker load -i /tmp/frontend-image.tar
             
             # Create deployment directory and navigate to it
-            mkdir -p ${{ env.DEPLOY_PATH }}
-            cd ${{ env.DEPLOY_PATH }}
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
             
             # Stop existing containers if running
             if [ -f docker-compose.yml ]; then
               echo "Stopping existing containers..."
               docker compose down
-              if [ $? -ne 0 ]; then
+              if [ \$? -ne 0 ]; then
                 echo "Warning: Failed to stop containers, but continuing with deployment"
               fi
             fi
@@ -97,7 +102,7 @@ jobs:
             
             # Show status
             docker compose ps
-          ENDSSH
+          EOF
 
       - name: Cleanup SSH key
         if: always()
