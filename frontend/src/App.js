@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 import PDFUpload from './components/PDFUpload';
-import FieldEditor from './components/FieldEditor';
+import PDFCanvas from './components/PDFCanvas';
 
 function App() {
   const [currentPDF, setCurrentPDF] = useState(null);
@@ -43,7 +43,7 @@ function App() {
                 </button>
               </div>
               
-              <FieldEditor 
+              <PDFCanvas 
                 pdfId={currentPDF.pdf_id}
                 fields={fields}
                 onFieldsUpdate={handleFieldUpdate}

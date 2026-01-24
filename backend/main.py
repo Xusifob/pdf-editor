@@ -1,10 +1,12 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pypdf
 import io
 import json
+import base64
 
 app = FastAPI(title="PDF Editor API", version="1.0.0")
 
@@ -189,6 +191,30 @@ async def delete_field(pdf_id: str, field_name: str):
     pdf_info["fields"] = [f for f in pdf_info["fields"] if f["name"] != field_name]
     
     return {"message": f"Field {field_name} deleted successfully"}
+
+
+@app.get("/api/pdf/{pdf_id}/content")
+async def get_pdf_content(pdf_id: str):
+    """
+    Get the raw PDF content as base64
+    """
+    if pdf_id not in pdf_storage:
+        raise HTTPException(status_code=404, detail="PDF not found")
+    
+    pdf_info = pdf_storage[pdf_id]
+    pdf_bytes = pdf_info.get("raw_data")
+    
+    if not pdf_bytes:
+        raise HTTPException(status_code=404, detail="PDF content not found")
+    
+    # Return base64 encoded PDF
+    pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+    
+    return {
+        "pdf_id": pdf_id,
+        "content": pdf_base64,
+        "content_type": "application/pdf"
+    }
 
 
 if __name__ == "__main__":
