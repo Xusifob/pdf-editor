@@ -30,6 +30,7 @@ The following variables must be configured in your GitHub repository:
 
 - `SSH_HOST`: The hostname or IP address of your deployment server (e.g., `example.com` or `192.168.1.100`)
 - `SSH_USER`: The username to use for SSH connection (e.g., `deploy` or `ubuntu`)
+- `DEPLOY_PATH` (optional): The directory path on the server where the application will be deployed (defaults to `/opt/pdf-editor` if not specified)
 
 ### Setup Instructions
 
@@ -61,6 +62,7 @@ The following variables must be configured in your GitHub repository:
    - Go to Settings → Secrets and variables → Actions → Variables tab
    - Add `SSH_HOST` with your server hostname/IP
    - Add `SSH_USER` with your SSH username
+   - (Optional) Add `DEPLOY_PATH` to customize deployment directory (defaults to `/opt/pdf-editor`)
 
 5. **Server Prerequisites**
    - Docker and Docker Compose must be installed on the deployment server
@@ -110,13 +112,15 @@ When you push to `master`, the workflow will:
 
 ### Customization
 
-To deploy to a different directory on the server, modify the `Deploy on server` step in `deploy.yml`:
+**Deploy to a different directory:**
 
-```yaml
-mkdir -p /your/custom/path && cd /your/custom/path
-```
+Add a `DEPLOY_PATH` variable in GitHub repository variables (Settings → Secrets and variables → Actions → Variables):
+- Name: `DEPLOY_PATH`
+- Value: `/your/custom/path` (e.g., `/home/deploy/apps/pdf-editor`)
 
-To deploy to a different branch, modify the `on.push.branches` section:
+**Deploy to a different branch:**
+
+Modify the `on.push.branches` section in `deploy.yml`:
 
 ```yaml
 on:
@@ -124,3 +128,7 @@ on:
     branches:
       - main  # or your preferred branch
 ```
+
+**Use with Docker Compose V1 (legacy):**
+
+If your server uses Docker Compose V1, update all instances of `docker compose` to `docker-compose` (with hyphen) in the workflow file.

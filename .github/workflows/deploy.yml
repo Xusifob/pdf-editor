@@ -8,6 +8,7 @@ on:
 env:
   SSH_HOST: ${{ vars.SSH_HOST }}
   SSH_USER: ${{ vars.SSH_USER }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/pdf-editor' }}
 
 jobs:
   build-and-deploy:
@@ -29,11 +30,11 @@ jobs:
       - name: Save Docker images
         run: |
           # Get project name and construct image names
-          PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+          PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]//g')
           
           # Try multiple naming patterns
-          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?backend|backend[-_]?${PROJECT_NAME}|pdf-editor.*backend" | head -n1)
-          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?frontend|frontend[-_]?${PROJECT_NAME}|pdf-editor.*frontend" | head -n1)
+          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?backend|backend[-_]?${PROJECT_NAME}" | head -n1)
+          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?frontend|frontend[-_]?${PROJECT_NAME}" | head -n1)
           
           # Validate that images were found
           if [ -z "$BACKEND_IMAGE" ] || [ -z "$FRONTEND_IMAGE" ]; then
@@ -73,12 +74,16 @@ jobs:
             docker load -i /tmp/frontend-image.tar
             
             # Create deployment directory and navigate to it
-            mkdir -p /opt/pdf-editor
-            cd /opt/pdf-editor
+            mkdir -p ${{ env.DEPLOY_PATH }}
+            cd ${{ env.DEPLOY_PATH }}
             
-            # Stop existing containers if running (only ignore "no containers" error)
+            # Stop existing containers if running
             if [ -f docker-compose.yml ]; then
-              docker compose down || true
+              echo "Stopping existing containers..."
+              docker compose down
+              if [ $? -ne 0 ]; then
+                echo "Warning: Failed to stop containers, but continuing with deployment"
+              fi
             fi
             
             # Copy new docker-compose file
