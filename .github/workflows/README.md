@@ -91,7 +91,8 @@ When you push to `master`, the workflow will:
 
 **Docker Issues on Server**
 - Ensure Docker is installed: `docker --version`
-- Ensure Docker Compose is installed: `docker-compose --version`
+- Ensure Docker Compose V2 is installed: `docker compose version`
+- For older systems with V1, you may need to update the workflow to use `docker-compose` (with hyphen)
 - Verify the user has Docker permissions: `docker ps`
 
 **Build Failures**

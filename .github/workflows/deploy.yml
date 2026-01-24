@@ -24,22 +24,30 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker-compose build
+          docker compose build
 
       - name: Save Docker images
         run: |
-          # Get the actual image names created by docker-compose
-          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "pdf-editor.*backend|backend.*pdf-editor" | head -n1)
-          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "pdf-editor.*frontend|frontend.*pdf-editor" | head -n1)
+          # Get project name and construct image names
+          PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+          
+          # Try multiple naming patterns
+          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?backend|backend[-_]?${PROJECT_NAME}|pdf-editor.*backend" | head -n1)
+          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]?frontend|frontend[-_]?${PROJECT_NAME}|pdf-editor.*frontend" | head -n1)
           
           # Validate that images were found
           if [ -z "$BACKEND_IMAGE" ] || [ -z "$FRONTEND_IMAGE" ]; then
             echo "Error: Could not find backend or frontend Docker images"
+            echo "Project name: $PROJECT_NAME"
             echo "Backend image: $BACKEND_IMAGE"
             echo "Frontend image: $FRONTEND_IMAGE"
+            echo "Available images:"
+            docker images
             exit 1
           fi
           
+          echo "Saving backend image: $BACKEND_IMAGE"
+          echo "Saving frontend image: $FRONTEND_IMAGE"
           docker save -o backend-image.tar $BACKEND_IMAGE
           docker save -o frontend-image.tar $FRONTEND_IMAGE
 
@@ -68,20 +76,22 @@ jobs:
             mkdir -p /opt/pdf-editor
             cd /opt/pdf-editor
             
-            # Stop existing containers if running
-            docker-compose down 2>/dev/null || true
+            # Stop existing containers if running (only ignore "no containers" error)
+            if [ -f docker-compose.yml ]; then
+              docker compose down || true
+            fi
             
             # Copy new docker-compose file
             cp /tmp/docker-compose.yml .
             
             # Start new containers
-            docker-compose up -d
+            docker compose up -d
             
             # Cleanup
             rm -f /tmp/backend-image.tar /tmp/frontend-image.tar /tmp/docker-compose.yml
             
             # Show status
-            docker-compose ps
+            docker compose ps
           ENDSSH
 
       - name: Cleanup SSH key
