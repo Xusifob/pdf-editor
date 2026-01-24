@@ -30,6 +30,14 @@ jobs:
           BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "pdf-editor.*backend|backend.*pdf-editor" | head -n1)
           FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "pdf-editor.*frontend|frontend.*pdf-editor" | head -n1)
           
+          # Validate that images were found
+          if [ -z "$BACKEND_IMAGE" ] || [ -z "$FRONTEND_IMAGE" ]; then
+            echo "Error: Could not find backend or frontend Docker images"
+            echo "Backend image: $BACKEND_IMAGE"
+            echo "Frontend image: $FRONTEND_IMAGE"
+            exit 1
+          fi
+          
           docker save -o backend-image.tar $BACKEND_IMAGE
           docker save -o frontend-image.tar $FRONTEND_IMAGE
 
@@ -42,13 +50,13 @@ jobs:
 
       - name: Copy files to server
         run: |
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          scp -i ~/.ssh/deploy_key \
             backend-image.tar frontend-image.tar docker-compose.yml \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
 
       - name: Deploy on server
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << 'ENDSSH'
             # Load Docker images
             docker load -i /tmp/backend-image.tar
@@ -65,7 +73,6 @@ jobs:
             cp /tmp/docker-compose.yml .
             
             # Start new containers
-            cd /opt/pdf-editor
             docker-compose up -d
             
             # Cleanup

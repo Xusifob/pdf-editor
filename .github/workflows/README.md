@@ -112,7 +112,7 @@ When you push to `master`, the workflow will:
 To deploy to a different directory on the server, modify the `Deploy on server` step in `deploy.yml`:
 
 ```yaml
-cd /your/custom/path || mkdir -p /your/custom/path
+mkdir -p /your/custom/path && cd /your/custom/path
 ```
 
 To deploy to a different branch, modify the `on.push.branches` section:
