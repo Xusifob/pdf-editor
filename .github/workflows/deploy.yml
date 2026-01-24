@@ -26,8 +26,12 @@ jobs:
 
       - name: Save Docker images
         run: |
-          docker save -o backend-image.tar pdf-editor-backend:latest || docker save -o backend-image.tar $(docker images --format "{{.Repository}}:{{.Tag}}" | grep backend | head -n1)
-          docker save -o frontend-image.tar pdf-editor-frontend:latest || docker save -o frontend-image.tar $(docker images --format "{{.Repository}}:{{.Tag}}" | grep frontend | head -n1)
+          # Get the actual image names created by docker-compose
+          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "pdf-editor.*backend|backend.*pdf-editor" | head -n1)
+          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "pdf-editor.*frontend|frontend.*pdf-editor" | head -n1)
+          
+          docker save -o backend-image.tar $BACKEND_IMAGE
+          docker save -o frontend-image.tar $FRONTEND_IMAGE
 
       - name: Setup SSH key
         run: |
@@ -39,15 +43,7 @@ jobs:
       - name: Copy files to server
         run: |
           scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            backend-image.tar \
-            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
-
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            frontend-image.tar \
-            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
-
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            docker-compose.yml \
+            backend-image.tar frontend-image.tar docker-compose.yml \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
 
       - name: Deploy on server
@@ -58,12 +54,15 @@ jobs:
             docker load -i /tmp/backend-image.tar
             docker load -i /tmp/frontend-image.tar
             
+            # Create deployment directory and navigate to it
+            mkdir -p /opt/pdf-editor
+            cd /opt/pdf-editor
+            
             # Stop existing containers if running
-            cd /opt/pdf-editor || mkdir -p /opt/pdf-editor
             docker-compose down 2>/dev/null || true
             
             # Copy new docker-compose file
-            cp /tmp/docker-compose.yml /opt/pdf-editor/
+            cp /tmp/docker-compose.yml .
             
             # Start new containers
             cd /opt/pdf-editor

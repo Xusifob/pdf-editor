@@ -24,7 +24,7 @@ The following secret must be configured in your GitHub repository:
   - Add the public key (`deploy_key.pub`) to `~/.ssh/authorized_keys` on your server
   - Add the private key (`deploy_key`) content to GitHub Secrets as `SSH_PRIVATE_KEY`
 
-#### Environment Variables (Repository Settings → Environments → Variables)
+#### Repository Variables (Repository Settings → Secrets and variables → Actions → Variables)
 
 The following variables must be configured in your GitHub repository:
 
