@@ -2,6 +2,26 @@
 
 A web application for uploading, parsing, and editing PDF form fields. Built with Python (FastAPI) backend and React frontend, containerized with Docker Compose.
 
+## Quick Start
+
+For the fastest setup, follow these steps:
+
+1. **Start the backend**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python -m uvicorn main:app --reload --port 8000
+   ```
+
+2. **Start the frontend** (in a new terminal):
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+
+3. **Access the application**: Open http://localhost:3000 in your browser
+
 ## Features
 
 - 📤 **PDF Upload**: Upload PDF files with drag-and-drop support
@@ -87,23 +107,52 @@ docker-compose down
 
 ## Development
 
-### Backend Development
+### Running Locally Without Docker (Recommended for Development)
 
-To run the backend locally without Docker:
+#### Backend Development
+
+1. **Setup backend**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
+
+2. **Run backend server**
+   ```bash
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+3. **Access API documentation**
+   - API Docs: http://localhost:8000/docs
+   - Alternative Docs: http://localhost:8000/redoc
+
+#### Frontend Development
+
+1. **Setup frontend**
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **Run development server**
+   ```bash
+   npm start
+   ```
+
+3. **Access application**
+   - Frontend: http://localhost:3000
+
+The frontend will automatically proxy API requests to the backend on port 8000.
+
+### Docker Compose (Alternative)
+
+If you prefer using Docker Compose:
 
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+docker compose up --build
 ```
 
-### Frontend Development
-
-To run the frontend locally without Docker:
-
-```bash
-cd frontend
-npm install
+**Note**: The Docker Compose setup requires proper SSL certificate configuration for PyPI access. If you encounter SSL certificate errors during the build, use the local development setup described above.
 npm start
 ```
 
