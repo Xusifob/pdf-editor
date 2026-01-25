@@ -1,27 +1,34 @@
-import React, { useState } from 'react';
+import { useState, ChangeEvent, DragEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import './PDFUpload.css';
+import { PDFData } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-function PDFUpload({ onPDFUploaded }) {
-  const [selectedFile, setSelectedFile] = useState(null);
+interface PDFUploadProps {
+  onPDFUploaded: (pdfData: PDFData) => void;
+}
+
+function PDFUpload({ onPDFUploaded }: PDFUploadProps) {
+  const { t } = useTranslation();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
+  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf') {
       setSelectedFile(file);
       setError(null);
     } else {
-      setError('Please select a valid PDF file');
+      setError(t('upload.errorInvalidFile'));
       setSelectedFile(null);
     }
   };
 
-  const handleDragOver = (event) => {
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragOver(true);
   };
@@ -30,7 +37,7 @@ function PDFUpload({ onPDFUploaded }) {
     setDragOver(false);
   };
 
-  const handleDrop = (event) => {
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragOver(false);
     
@@ -39,13 +46,13 @@ function PDFUpload({ onPDFUploaded }) {
       setSelectedFile(file);
       setError(null);
     } else {
-      setError('Please drop a valid PDF file');
+      setError(t('upload.errorDropInvalid'));
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      setError('Please select a file first');
+      setError(t('upload.errorNoFile'));
       return;
     }
 
@@ -56,15 +63,15 @@ function PDFUpload({ onPDFUploaded }) {
     formData.append('file', selectedFile);
 
     try {
-      const response = await axios.post(`${API_URL}/api/pdf/upload`, formData, {
+      const response = await axios.post<PDFData>(`${API_URL}/api/pdf/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       onPDFUploaded(response.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to upload PDF');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || t('upload.errorUploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -79,8 +86,8 @@ function PDFUpload({ onPDFUploaded }) {
         onDrop={handleDrop}
       >
         <div className="upload-icon">📄</div>
-        <h3>Upload PDF</h3>
-        <p>Drag and drop a PDF file here, or click to select</p>
+        <h3>{t('upload.title')}</h3>
+        <p>{t('upload.subtitle')}</p>
         
         <input
           type="file"
@@ -90,12 +97,12 @@ function PDFUpload({ onPDFUploaded }) {
           id="file-input"
         />
         <label htmlFor="file-input" className="file-label btn-primary">
-          Choose File
+          {t('upload.chooseFile')}
         </label>
 
         {selectedFile && (
           <div className="selected-file">
-            <p>Selected: <strong>{selectedFile.name}</strong></p>
+            <p>{t('upload.selected')}: <strong>{selectedFile.name}</strong></p>
             <p className="file-size">
               {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
             </p>
@@ -110,7 +117,7 @@ function PDFUpload({ onPDFUploaded }) {
             disabled={uploading}
             className="btn-success upload-button"
           >
-            {uploading ? 'Uploading...' : 'Upload and Extract Fields'}
+            {uploading ? t('upload.uploading') : t('upload.uploadButton')}
           </button>
         )}
       </div>
