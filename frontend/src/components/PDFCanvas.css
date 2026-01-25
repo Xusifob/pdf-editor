@@ -403,6 +403,17 @@
   margin-bottom: 0.75rem;
 }
 
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-row .field-property {
+  flex: 1;
+  margin-bottom: 0;
+}
+
 .field-property label {
   display: block;
   margin-bottom: 0.25rem;

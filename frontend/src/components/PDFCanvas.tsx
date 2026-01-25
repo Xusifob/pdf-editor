@@ -409,8 +409,53 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                   <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.name')}:</strong></label><input type="text" className="field-name-input" value={selectedFieldData.name || ''} onChange={(e) => handleFieldNameChange(getFieldId(selectedFieldData), e.target.value)} placeholder={t('pdfCanvas.fieldMenu.fieldName')} /></div>
                   {selectedFieldData.original_name && <p className="original-name"><strong>{t('pdfCanvas.fieldMenu.original')}:</strong> {selectedFieldData.original_name}</p>}
                   <p><strong>{t('pdfCanvas.fieldMenu.type')}:</strong> {selectedFieldData.field_type}</p>
-                  <p><strong>{t('pdfCanvas.fieldMenu.position')}:</strong> ({Math.round(selectedFieldData.x)}, {Math.round(selectedFieldData.y)})</p>
-                  <p><strong>{t('pdfCanvas.fieldMenu.size')}:</strong> {Math.round(selectedFieldData.width)} × {Math.round(selectedFieldData.height)}</p>
+                  
+                  <div className="form-row">
+                    <div className="field-property">
+                      <label><strong>{t('pdfCanvas.fieldMenu.xPosition')}:</strong></label>
+                      <input
+                        type="number"
+                        className="field-number-input"
+                        value={Math.round(selectedFieldData.x)}
+                        min="0"
+                        onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'x', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="field-property">
+                      <label><strong>{t('pdfCanvas.fieldMenu.yPosition')}:</strong></label>
+                      <input
+                        type="number"
+                        className="field-number-input"
+                        value={Math.round(selectedFieldData.y)}
+                        min="0"
+                        onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'y', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="field-property">
+                      <label><strong>{t('pdfCanvas.fieldMenu.width')}:</strong></label>
+                      <input
+                        type="number"
+                        className="field-number-input"
+                        value={Math.round(selectedFieldData.width)}
+                        min="10"
+                        onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'width', parseFloat(e.target.value) || 100)}
+                      />
+                    </div>
+                    <div className="field-property">
+                      <label><strong>{t('pdfCanvas.fieldMenu.height')}:</strong></label>
+                      <input
+                        type="number"
+                        className="field-number-input"
+                        value={Math.round(selectedFieldData.height)}
+                        min="10"
+                        onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'height', parseFloat(e.target.value) || 30)}
+                      />
+                    </div>
+                  </div>
+
                   <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.page')}:</strong></label><select className="field-select" value={selectedFieldData.page || 0} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'page', parseInt(e.target.value))}>{Array.from({ length: numPages || 1 }, (_, i) => (<option key={i} value={i}>{t('pdfCanvas.toolbar.page')} {i + 1}</option>))}</select></div>
 
                   {(selectedFieldData.field_type === 'Checkbox' || selectedFieldData.field_type === 'Radio') && (<>
