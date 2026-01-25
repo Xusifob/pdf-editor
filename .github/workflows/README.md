@@ -148,7 +148,7 @@ After deployment, the structure in `DEPLOY_PATH` will be:
 - Ensure Python is installed: `python3.11 --version`
 - Ensure pip is available: `python3.11 -m pip --version`
 - Check user has pip install permissions
-- Try `python3 -m pip install --user -r requirements.txt` manually
+- Try `python3.11 -m pip install --user -r requirements.txt` manually
 
 **Backend Startup Failures**
 - Check `backend.log` for error messages

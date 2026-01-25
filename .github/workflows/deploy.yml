@@ -46,9 +46,9 @@ jobs:
           # Kill any existing processes
           pkill -f "uvicorn main:app" || true
           
-          # Start backend
+          # Start backend (use PYTHON_VERSION from environment)
           cd backend
-          nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
+          nohup python${PYTHON_VERSION:-3.11} -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
           echo $! > ../backend.pid
           
           echo "Backend started on port 8000 (PID: $(cat ../backend.pid))"
@@ -133,6 +133,10 @@ jobs:
                 cat backend.log
                 exit 1
               fi
+            else
+              echo "✗ Backend PID file not created"
+              cat backend.log 2>/dev/null || echo "No log file found"
+              exit 1
             fi
             
             # Cleanup
