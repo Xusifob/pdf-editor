@@ -9,10 +9,12 @@ The `deploy.yml` workflow automatically deploys the PDF Editor application to a 
 ### How It Works
 
 1. **Triggers**: Automatically runs on push to `master` branch
-2. **Builds**: Creates production build of the React frontend
-3. **Packages**: Bundles backend and frontend with deployment scripts
-4. **Transfers**: Securely copies package to the remote server via SSH
-5. **Deploys**: Installs dependencies and starts Python server
+2. **Validates**: Checks that required SSH configuration variables are set
+3. **Builds**: Compiles TypeScript and creates production build of the React frontend
+4. **Type Checks**: Runs TypeScript type checking to catch errors before deployment
+5. **Packages**: Bundles backend and frontend with deployment scripts
+6. **Transfers**: Securely copies package to the remote server via SSH using a secure temporary directory
+7. **Deploys**: Installs dependencies and starts Python server
 
 ### Required Configuration
 
@@ -72,20 +74,35 @@ The following variables must be configured in your GitHub repository:
    - pip package manager installed
    - SSH access configured with public key authentication
    - Port 8000 (backend) accessible
-   - User has permission to install Python packages (pip)
+   - User has permission to install Python packages with pip
+   - User has write permissions to the deployment directory
+   - **Recommended**: Use a dedicated deployment user with limited permissions
+
+   **Note on DEPLOY_PATH permissions:**
+   - If using `/opt/pdf-editor`, the directory should be pre-created with proper ownership:
+     ```bash
+     sudo mkdir -p /opt/pdf-editor
+     sudo chown $USER:$USER /opt/pdf-editor
+     ```
+   - Alternatively, use a directory in the user's home directory (e.g., `~/pdf-editor`)
 
 ### Deployment Process
 
 When you push to `master`, the workflow will:
 
 1. Check out the code
-2. Build the React frontend for production (`npm run build`)
-3. Create a deployment package with:
+2. Validate that SSH_HOST and SSH_USER are configured
+3. Set up Node.js 18
+4. Install frontend dependencies
+5. Run TypeScript type checking (compiles .ts/.tsx files without emitting)
+6. Build the React frontend for production (`npm run build`)
+7. Create a deployment package with:
    - Backend Python code and dependencies
    - Built frontend static files
    - Start/stop scripts for server management
-4. Transfer the package to the server via SCP
-5. SSH into the server and:
+8. Transfer the package to a secure temporary directory on the server via SCP
+9. SSH into the server and:
+   - Verify write permissions to deployment directory
    - Stop any existing server process
    - Extract the new deployment package
    - Install Python dependencies with pip
@@ -161,14 +178,41 @@ After deployment, the structure in `DEPLOY_PATH` will be:
 - Verify `package.json` and `requirements.txt` are up to date
 - Ensure all dependencies are properly specified
 
+**TypeScript Errors**
+- TypeScript type checking runs during build - check workflow logs for type errors
+- Run `npx tsc --noEmit` locally in the frontend directory to check for type errors
+- Ensure all TypeScript dependencies are installed: `@types/react`, `@types/react-dom`, etc.
+
+**Configuration Validation Failures**
+- Ensure `SSH_HOST` and `SSH_USER` variables are set in GitHub repository variables
+- The workflow will fail early with clear error messages if these are missing
+
+**Permission Errors**
+- If deployment fails with permission errors, verify the deployment directory permissions
+- For `/opt/pdf-editor`, pre-create with: `sudo mkdir -p /opt/pdf-editor && sudo chown $USER:$USER /opt/pdf-editor`
+- Consider using a path in the user's home directory for simpler permissions
+
 ### Security Notes
 
+**SSH Authentication:**
 - The SSH private key is stored securely in GitHub Secrets and never exposed in logs
 - The key is removed from the runner after deployment
 - Use a dedicated deployment key with minimal permissions
-- Consider setting up a dedicated deployment user on your server
+- **SSH Host Key Verification**: The workflow uses `ssh-keyscan` to add the host key. While this is standard practice in CI/CD, it is susceptible to man-in-the-middle attacks during first connection.
+  - For enhanced security, consider manually adding the server's host key to GitHub Secrets and using it directly
+  - This tradeoff is acceptable for most use cases given the convenience and standard practice
+
+**Server Security:**
+- Consider setting up a dedicated deployment user on your server with limited permissions
 - Review firewall rules to ensure proper access control
 - Backend runs as a background process - consider using a process manager like systemd or supervisor for production
+- Deployment files are transferred to a secure temporary directory (created with `mktemp -d`) rather than world-writable `/tmp`
+
+**Production Recommendations:**
+- Use a process manager (systemd, supervisor) for automatic restarts and better process management
+- Implement HTTPS with a reverse proxy (nginx, Apache) for the frontend
+- Set up proper logging and monitoring
+- Regular security updates for all system packages
 
 ### Using a Process Manager (Recommended for Production)
 

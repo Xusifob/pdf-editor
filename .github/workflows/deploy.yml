@@ -21,6 +21,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate configuration
+        run: |
+          if [ -z "${{ env.SSH_HOST }}" ]; then
+            echo "Error: SSH_HOST variable is not set"
+            exit 1
+          fi
+          if [ -z "${{ env.SSH_USER }}" ]; then
+            echo "Error: SSH_USER variable is not set"
+            exit 1
+          fi
+          echo "✓ Configuration validated"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,6 +42,13 @@ jobs:
         run: |
           cd frontend
           npm ci
+          
+          # Run TypeScript type checking
+          echo "Running TypeScript type checking..."
+          npx tsc --noEmit
+          
+          # Build the production bundle
+          echo "Building production bundle..."
           npm run build
 
       - name: Create deployment package
@@ -43,12 +62,15 @@ jobs:
           #!/bin/bash
           # Start script for PDF Editor
           
+          # Set Python version (default to 3.11 if not set)
+          PYTHON_VERSION=${PYTHON_VERSION:-3.11}
+          
           # Kill any existing processes
           pkill -f "uvicorn main:app" || true
           
-          # Start backend (use PYTHON_VERSION from environment)
+          # Start backend
           cd backend
-          nohup python${PYTHON_VERSION:-3.11} -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
+          nohup python${PYTHON_VERSION} -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
           echo $! > ../backend.pid
           
           echo "Backend started on port 8000 (PID: $(cat ../backend.pid))"
@@ -86,8 +108,12 @@ jobs:
 
       - name: Copy files to server
         run: |
+          # Create unique temporary directory on server for security
+          TEMP_DIR=$(ssh -i ~/.ssh/deploy_key ${{ env.SSH_USER }}@${{ env.SSH_HOST }} 'mktemp -d')
+          echo "Using temporary directory: $TEMP_DIR"
+          
           scp -i ~/.ssh/deploy_key deploy.tar.gz \
-            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:$TEMP_DIR/
 
       - name: Deploy on server
         run: |
@@ -95,11 +121,22 @@ jobs:
           PYTHON_VERSION="${{ env.PYTHON_VERSION }}"
           ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
-            bash -s << EOF
+            bash -s << 'EOF'
             set -e
             
-            # Create deployment directory
+            # Get temp directory with deployment package
+            TEMP_DIR=$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
+            
+            # Create deployment directory with proper permissions
+            echo "Creating deployment directory: $DEPLOY_PATH"
             mkdir -p "$DEPLOY_PATH"
+            
+            # Verify write permissions
+            if [ ! -w "$DEPLOY_PATH" ]; then
+              echo "Error: No write permission to $DEPLOY_PATH"
+              exit 1
+            fi
+            
             cd "$DEPLOY_PATH"
             
             # Stop existing server if running
@@ -109,7 +146,8 @@ jobs:
             fi
             
             # Extract new version
-            tar -xzf /tmp/deploy.tar.gz -C "$DEPLOY_PATH"
+            echo "Extracting deployment package..."
+            tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$DEPLOY_PATH"
             
             # Install Python dependencies
             cd backend
@@ -117,17 +155,20 @@ jobs:
             python$PYTHON_VERSION -m pip install --user -r requirements.txt
             cd ..
             
+            # Export PYTHON_VERSION for start script
+            export PYTHON_VERSION=$PYTHON_VERSION
+            
             # Start the server
             echo "Starting server..."
             ./start.sh
             
             # Wait a moment for startup
-            sleep 2
+            sleep 3
             
             # Check if backend is running
             if [ -f backend.pid ]; then
-              if ps -p \$(cat backend.pid) > /dev/null; then
-                echo "✓ Backend is running (PID: \$(cat backend.pid))"
+              if ps -p $(cat backend.pid) > /dev/null; then
+                echo "✓ Backend is running (PID: $(cat backend.pid))"
               else
                 echo "✗ Backend failed to start"
                 cat backend.log
@@ -139,11 +180,14 @@ jobs:
               exit 1
             fi
             
-            # Cleanup
-            rm -f /tmp/deploy.tar.gz
+            # Cleanup temporary directory
+            rm -rf "$TEMP_DIR"
             
             echo "Deployment completed successfully!"
           EOF
+        env:
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
 
       - name: Cleanup SSH key
         if: always()
