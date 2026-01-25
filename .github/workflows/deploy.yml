@@ -37,12 +37,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '24'
 
       - name: Build frontend
         run: |
           cd frontend
-          npm ci
+          yarn install
           
           # Build the production bundle
           echo "Building production bundle..."
