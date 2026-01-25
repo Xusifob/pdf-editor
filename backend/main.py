@@ -81,14 +81,9 @@ def decode_pdf_string(value) -> str:
     if value is None:
         return ""
 
-    # If it's already a string, try to handle encoding issues
+    # If it's already a string, return as-is (it's already been decoded by pypdf)
     if isinstance(value, str):
-        # Try to fix common encoding issues
-        try:
-            # Sometimes PDF strings are incorrectly decoded, try to fix
-            return value.encode('latin-1').decode('utf-8', errors='replace')
-        except:
-            return value
+        return value
 
     # If it's bytes, decode properly
     if isinstance(value, bytes):
