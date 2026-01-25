@@ -3,6 +3,8 @@ import './App.css';
 import PDFUpload from './components/PDFUpload';
 import PDFCanvas from './components/PDFCanvas';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 function App() {
   const [currentPDF, setCurrentPDF] = useState(null);
   const [fields, setFields] = useState([]);
@@ -14,6 +16,36 @@ function App() {
 
   const handleFieldUpdate = (updatedFields) => {
     setFields(updatedFields);
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!currentPDF) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/pdf/${currentPDF.pdf_id}/download`);
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentPDF.filename || 'document.pdf';
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
   };
 
   return (
@@ -32,15 +64,23 @@ function App() {
               <div className="pdf-info">
                 <h2>{currentPDF.filename}</h2>
                 <p>Pages: {currentPDF.num_pages} | Fields: {fields.length}</p>
-                <button 
-                  className="btn-secondary"
-                  onClick={() => {
-                    setCurrentPDF(null);
-                    setFields([]);
-                  }}
-                >
-                  Upload Another PDF
-                </button>
+                <div className="pdf-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={handleDownloadPDF}
+                  >
+                    📥 Download PDF
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setCurrentPDF(null);
+                      setFields([]);
+                    }}
+                  >
+                    Upload Another PDF
+                  </button>
+                </div>
               </div>
               
               <PDFCanvas 

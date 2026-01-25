@@ -20,7 +20,7 @@ services:
       dockerfile: Dockerfile
     container_name: pdf-editor-frontend
     ports:
-      - "3000:3000"
+      - "3003:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
