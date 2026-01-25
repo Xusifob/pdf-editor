@@ -97,7 +97,7 @@ function PDFUpload({ onPDFUploaded }: PDFUploadProps) {
           id="file-input"
         />
         <label htmlFor="file-input" className="file-label btn-primary">
-          {t('upload.chooseFile')}
+          📁 {t('upload.chooseFile')}
         </label>
 
         {selectedFile && (
