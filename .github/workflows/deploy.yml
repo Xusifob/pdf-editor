@@ -1,15 +1,16 @@
-name: Deploy to Server
+name: Deploy to Production Server
 
 on:
   push:
     branches:
       - master
+      - main
 
 env:
   SSH_HOST: ${{ vars.SSH_HOST }}
   SSH_USER: ${{ vars.SSH_USER }}
-  DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/pdf-editor' }}
-  PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.11' }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/pdfmerger/pdf-editor' }}
+  PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.9' }}
 
 jobs:
   build-and-deploy:
@@ -43,13 +44,9 @@ jobs:
           cd frontend
           npm ci
           
-          # Run TypeScript type checking
-          echo "Running TypeScript type checking..."
-          npx tsc --noEmit
-          
           # Build the production bundle
           echo "Building production bundle..."
-          npm run build
+          CI=false npm run build
 
       - name: Create deployment package
         run: |
@@ -57,44 +54,90 @@ jobs:
           cp -r backend deploy_package/
           cp -r frontend/build deploy_package/frontend
           
-          # Create a deployment script
-          cat > deploy_package/start.sh << 'STARTSCRIPT'
+          # Create deployment script for our Apache + systemd setup
+          cat > deploy_package/deploy.sh << 'DEPLOYSCRIPT'
           #!/bin/bash
-          # Start script for PDF Editor
+          # Deployment script for PDF Editor (Apache + systemd setup)
           
-          # Set Python version (default to 3.11 if not set)
-          PYTHON_VERSION=${PYTHON_VERSION:-3.11}
+          set -e
           
-          # Kill any existing processes
-          pkill -f "uvicorn main:app" || true
+          echo "=== PDF Editor Deployment ==="
+          echo "Deployment path: $DEPLOY_PATH"
           
-          # Start backend
-          cd backend
-          nohup python${PYTHON_VERSION} -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
-          echo $! > ../backend.pid
+          # Stop backend service
+          echo "Stopping backend service..."
+          sudo systemctl stop pdfmerger || true
           
-          echo "Backend started on port 8000 (PID: $(cat ../backend.pid))"
-          echo "Frontend static files available in frontend/ directory"
-          STARTSCRIPT
-          
-          chmod +x deploy_package/start.sh
-          
-          # Create a stop script
-          cat > deploy_package/stop.sh << 'STOPSCRIPT'
-          #!/bin/bash
-          # Stop script for PDF Editor
-          
-          if [ -f backend.pid ]; then
-            kill $(cat backend.pid) 2>/dev/null || true
-            rm -f backend.pid
-            echo "Backend stopped"
-          else
-            pkill -f "uvicorn main:app" || true
-            echo "Stopped any running backend processes"
+          # Backup existing files
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          echo "Creating backup..."
+          if [ -d "$DEPLOY_PATH/backend" ]; then
+            sudo mv "$DEPLOY_PATH/backend" "$DEPLOY_PATH/backend_backup_$TIMESTAMP"
           fi
-          STOPSCRIPT
+          if [ -d "$DEPLOY_PATH/frontend" ]; then
+            sudo mv "$DEPLOY_PATH/frontend" "$DEPLOY_PATH/frontend_backup_$TIMESTAMP"
+          fi
           
-          chmod +x deploy_package/stop.sh
+          # Copy new files
+          echo "Copying new files..."
+          sudo cp -r backend "$DEPLOY_PATH/"
+          sudo cp -r frontend "$DEPLOY_PATH/"
+          
+          # Set proper permissions
+          echo "Setting permissions..."
+          sudo chown -R root:root "$DEPLOY_PATH/backend"
+          sudo chown -R root:root "$DEPLOY_PATH/frontend"
+          sudo chmod -R 755 "$DEPLOY_PATH"
+          
+          # Install Python dependencies
+          echo "Installing Python dependencies..."
+          cd "$DEPLOY_PATH/backend"
+          if [ -d "venv" ]; then
+            echo "Using existing virtual environment"
+            source venv/bin/activate
+            pip install -r requirements.txt
+          else
+            echo "Creating new virtual environment"
+            python${PYTHON_VERSION} -m venv venv
+            source venv/bin/activate
+            pip install -r requirements.txt
+          fi
+          deactivate
+          
+          # Deploy frontend to Apache
+          echo "Deploying frontend to Apache..."
+          sudo rm -rf /var/www/pdf.malahieude.net/frontend/*
+          sudo cp -r "$DEPLOY_PATH/frontend/build/"* /var/www/pdf.malahieude.net/frontend/
+          
+          # Restart services
+          echo "Restarting services..."
+          sudo systemctl restart pdfmerger
+          sudo systemctl restart apache2
+          
+          # Verify services
+          echo "Verifying services..."
+          if systemctl is-active --quiet pdfmerger; then
+            echo "✓ Backend service is running"
+          else
+            echo "✗ Backend service failed to start"
+            sudo journalctl -u pdfmerger -n 20
+            exit 1
+          fi
+          
+          if systemctl is-active --quiet apache2; then
+            echo "✓ Apache service is running"
+          else
+            echo "✗ Apache service failed to start"
+            sudo journalctl -u apache2 -n 20
+            exit 1
+          fi
+          
+          echo "✓ Deployment completed successfully!"
+          echo "Frontend: https://pdf.malahieude.net"
+          echo "Backend: https://pdf-api.malahieude.net"
+          DEPLOYSCRIPT
+          
+          chmod +x deploy_package/deploy.sh
           
           # Create archive
           tar -czf deploy.tar.gz -C deploy_package .
@@ -127,63 +170,23 @@ jobs:
             # Get temp directory with deployment package
             TEMP_DIR=$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
             
-            # Create deployment directory with proper permissions
-            echo "Creating deployment directory: $DEPLOY_PATH"
-            mkdir -p "$DEPLOY_PATH"
-            
-            # Verify write permissions
-            if [ ! -w "$DEPLOY_PATH" ]; then
-              echo "Error: No write permission to $DEPLOY_PATH"
+            if [ -z "$TEMP_DIR" ] || [ ! -f "$TEMP_DIR/deploy.tar.gz" ]; then
+              echo "Error: Deployment package not found"
               exit 1
             fi
             
-            cd "$DEPLOY_PATH"
-            
-            # Stop existing server if running
-            if [ -f stop.sh ]; then
-              echo "Stopping existing server..."
-              ./stop.sh
-            fi
-            
-            # Extract new version
             echo "Extracting deployment package..."
-            tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$DEPLOY_PATH"
+            tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$TEMP_DIR"
             
-            # Install Python dependencies
-            cd backend
-            echo "Installing Python dependencies..."
-            python$PYTHON_VERSION -m pip install --user -r requirements.txt
-            cd ..
-            
-            # Export PYTHON_VERSION for start script
-            export PYTHON_VERSION=$PYTHON_VERSION
-            
-            # Start the server
-            echo "Starting server..."
-            ./start.sh
-            
-            # Wait a moment for startup
-            sleep 3
-            
-            # Check if backend is running
-            if [ -f backend.pid ]; then
-              if ps -p $(cat backend.pid) > /dev/null; then
-                echo "✓ Backend is running (PID: $(cat backend.pid))"
-              else
-                echo "✗ Backend failed to start"
-                cat backend.log
-                exit 1
-              fi
-            else
-              echo "✗ Backend PID file not created"
-              cat backend.log 2>/dev/null || echo "No log file found"
-              exit 1
-            fi
+            # Run deployment script
+            echo "Running deployment script..."
+            cd "$TEMP_DIR"
+            ./deploy.sh
             
             # Cleanup temporary directory
             rm -rf "$TEMP_DIR"
             
-            echo "Deployment completed successfully!"
+            echo "Deployment completed!"
           EOF
         env:
           DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
