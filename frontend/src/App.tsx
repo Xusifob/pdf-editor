@@ -1,20 +1,23 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './App.css';
 import PDFUpload from './components/PDFUpload';
 import PDFCanvas from './components/PDFCanvas';
+import { PDFData, PDFField } from './types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
-  const [currentPDF, setCurrentPDF] = useState(null);
-  const [fields, setFields] = useState([]);
+  const { t } = useTranslation();
+  const [currentPDF, setCurrentPDF] = useState<PDFData | null>(null);
+  const [fields, setFields] = useState<PDFField[]>([]);
 
-  const handlePDFUploaded = (pdfData) => {
+  const handlePDFUploaded = (pdfData: PDFData) => {
     setCurrentPDF(pdfData);
     setFields(pdfData.fields || []);
   };
 
-  const handleFieldUpdate = (updatedFields) => {
+  const handleFieldUpdate = (updatedFields: PDFField[]) => {
     setFields(updatedFields);
   };
 
@@ -28,10 +31,7 @@ function App() {
         throw new Error('Download failed');
       }
 
-      // Get the blob from response
       const blob = await response.blob();
-
-      // Create a download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -39,7 +39,6 @@ function App() {
       document.body.appendChild(a);
       a.click();
 
-      // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
@@ -51,8 +50,8 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>📄 PDF Editor</h1>
-        <p>Upload a PDF, extract fields, and edit them</p>
+        <h1>📄 {t('app.title')}</h1>
+        <p>{t('app.subtitle')}</p>
       </header>
       
       <main className="App-main">
@@ -63,13 +62,13 @@ function App() {
             <div>
               <div className="pdf-info">
                 <h2>{currentPDF.filename}</h2>
-                <p>Pages: {currentPDF.num_pages} | Fields: {fields.length}</p>
+                <p>{t('pdfInfo.pages')}: {currentPDF.num_pages} | {t('pdfInfo.fields')}: {fields.length}</p>
                 <div className="pdf-actions">
                   <button
                     className="btn-primary"
                     onClick={handleDownloadPDF}
                   >
-                    📥 Download PDF
+                    📥 {t('pdfInfo.downloadPDF')}
                   </button>
                   <button
                     className="btn-secondary"
@@ -78,7 +77,7 @@ function App() {
                       setFields([]);
                     }}
                   >
-                    Upload Another PDF
+                    {t('pdfInfo.uploadAnother')}
                   </button>
                 </div>
               </div>

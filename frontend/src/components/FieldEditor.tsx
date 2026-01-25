@@ -1,21 +1,32 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import './FieldEditor.css';
+import { PDFField, MessageState } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
-  const [editingField, setEditingField] = useState(null);
+interface FieldEditorProps {
+  pdfId: string;
+  fields: PDFField[];
+  onFieldsUpdate: (fields: PDFField[]) => void;
+}
+
+function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
+  const { t } = useTranslation();
+  const [editingField, setEditingField] = useState<PDFField | null>(null);
   const [newFieldName, setNewFieldName] = useState('');
   const [showAddField, setShowAddField] = useState(false);
-  const [draggingField, setDraggingField] = useState(null);
-  const [message, setMessage] = useState(null);
+  const [draggingField, setDraggingField] = useState<PDFField | null>(null);
+  const [message, setMessage] = useState<MessageState | null>(null);
 
-  const handleEditField = (field) => {
+  const handleEditField = (field: PDFField) => {
     setEditingField({ ...field });
   };
 
   const handleSaveField = async () => {
+    if (!editingField) return;
+
     try {
       await axios.post(`${API_URL}/api/pdf/${pdfId}/field`, {
         field: editingField
@@ -26,22 +37,22 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
       );
       onFieldsUpdate(updatedFields);
       setEditingField(null);
-      setMessage({ type: 'success', text: 'Field updated successfully!' });
+      setMessage({ type: 'success', text: t('fieldEditor.fieldUpdated') });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to update field' });
+      setMessage({ type: 'error', text: t('fieldEditor.errorUpdateFailed') });
       setTimeout(() => setMessage(null), 3000);
     }
   };
 
   const handleAddField = async () => {
     if (!newFieldName.trim()) {
-      setMessage({ type: 'error', text: 'Please enter a field name' });
+      setMessage({ type: 'error', text: t('fieldEditor.errorFieldName') });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
 
-    const newField = {
+    const newField: PDFField = {
       name: newFieldName,
       field_type: 'Text',
       value: '',
@@ -60,16 +71,16 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
       onFieldsUpdate([...fields, newField]);
       setNewFieldName('');
       setShowAddField(false);
-      setMessage({ type: 'success', text: 'Field added successfully!' });
+      setMessage({ type: 'success', text: t('fieldEditor.fieldAdded') });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to add field' });
+      setMessage({ type: 'error', text: t('fieldEditor.errorAddFailed') });
       setTimeout(() => setMessage(null), 3000);
     }
   };
 
-  const handleDeleteField = async (fieldName) => {
-    if (!window.confirm(`Are you sure you want to delete field "${fieldName}"?`)) {
+  const handleDeleteField = async (fieldName: string) => {
+    if (!window.confirm(t('fieldEditor.deleteConfirm', { fieldName }))) {
       return;
     }
 
@@ -77,15 +88,15 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
       await axios.delete(`${API_URL}/api/pdf/${pdfId}/field/${fieldName}`);
       const updatedFields = fields.filter(f => f.name !== fieldName);
       onFieldsUpdate(updatedFields);
-      setMessage({ type: 'success', text: 'Field deleted successfully!' });
+      setMessage({ type: 'success', text: t('fieldEditor.fieldDeleted') });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to delete field' });
+      setMessage({ type: 'error', text: t('fieldEditor.errorDeleteFailed') });
       setTimeout(() => setMessage(null), 3000);
     }
   };
 
-  const handleDragStart = (field) => {
+  const handleDragStart = (field: PDFField) => {
     setDraggingField(field);
   };
 
@@ -93,13 +104,12 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
     setDraggingField(null);
   };
 
-  const handleDrop = async (event, targetField) => {
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>, targetField: PDFField) => {
     event.preventDefault();
     if (!draggingField || draggingField.name === targetField.name) {
       return;
     }
 
-    // Swap positions in the array
     const dragIndex = fields.findIndex(f => f.name === draggingField.name);
     const dropIndex = fields.findIndex(f => f.name === targetField.name);
     
@@ -107,19 +117,19 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
     [newFields[dragIndex], newFields[dropIndex]] = [newFields[dropIndex], newFields[dragIndex]];
     
     onFieldsUpdate(newFields);
-    setMessage({ type: 'success', text: 'Fields reordered!' });
+    setMessage({ type: 'success', text: t('fieldEditor.fieldsReordered') });
     setTimeout(() => setMessage(null), 3000);
   };
 
   return (
     <div className="field-editor">
       <div className="editor-header">
-        <h2>Fields ({fields.length})</h2>
+        <h2>{t('fieldEditor.title')} ({fields.length})</h2>
         <button 
           className="btn-success"
           onClick={() => setShowAddField(!showAddField)}
         >
-          {showAddField ? 'Cancel' : '+ Add Field'}
+          {showAddField ? t('fieldEditor.cancel') : `+ ${t('fieldEditor.addField')}`}
         </button>
       </div>
 
@@ -133,13 +143,13 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
         <div className="add-field-form">
           <input
             type="text"
-            placeholder="Field name"
+            placeholder={t('fieldEditor.fieldName')}
             value={newFieldName}
             onChange={(e) => setNewFieldName(e.target.value)}
             className="field-input"
           />
           <button className="btn-success" onClick={handleAddField}>
-            Add Field
+            {t('fieldEditor.addFieldButton')}
           </button>
         </div>
       )}
@@ -147,10 +157,10 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
       <div className="fields-list">
         {fields.length === 0 ? (
           <div className="no-fields">
-            <p>No fields found in the PDF. Add fields manually using the button above.</p>
+            <p>{t('fieldEditor.noFields')}</p>
           </div>
         ) : (
-          fields.map((field, index) => (
+          fields.map((field) => (
             <div
               key={field.name}
               className={`field-item ${draggingField?.name === field.name ? 'dragging' : ''}`}
@@ -171,28 +181,28 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
                     className="btn-edit"
                     onClick={() => handleEditField(field)}
                   >
-                    Edit
+                    {t('fieldEditor.edit')}
                   </button>
                   <button
                     className="btn-delete"
                     onClick={() => handleDeleteField(field.name)}
                   >
-                    Delete
+                    {t('fieldEditor.delete')}
                   </button>
                 </div>
               </div>
               
               {field.value && (
                 <div className="field-value">
-                  Value: {field.value}
+                  {t('fieldEditor.value')}: {field.value}
                 </div>
               )}
 
               {field.x !== null && field.y !== null && (
                 <div className="field-position">
-                  Position: ({field.x}, {field.y}) | 
-                  Size: {field.width}x{field.height} | 
-                  Page: {field.page}
+                  {t('fieldEditor.position')}: ({field.x}, {field.y}) | 
+                  {t('fieldEditor.size')}: {field.width}x{field.height} | 
+                  {t('fieldEditor.page')}: {field.page}
                 </div>
               )}
             </div>
@@ -203,10 +213,10 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
       {editingField && (
         <div className="modal-overlay" onClick={() => setEditingField(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Edit Field: {editingField.name}</h3>
+            <h3>{t('fieldEditor.editField')}: {editingField.name}</h3>
             
             <div className="form-group">
-              <label>Field Type:</label>
+              <label>{t('fieldEditor.fieldType')}:</label>
               <input
                 type="text"
                 value={editingField.field_type}
@@ -216,7 +226,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
             </div>
 
             <div className="form-group">
-              <label>Value:</label>
+              <label>{t('fieldEditor.value')}:</label>
               <input
                 type="text"
                 value={editingField.value || ''}
@@ -227,7 +237,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
 
             <div className="form-row">
               <div className="form-group">
-                <label>X Position:</label>
+                <label>{t('fieldEditor.xPosition')}:</label>
                 <input
                   type="number"
                   value={editingField.x || 0}
@@ -237,7 +247,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
               </div>
 
               <div className="form-group">
-                <label>Y Position:</label>
+                <label>{t('fieldEditor.yPosition')}:</label>
                 <input
                   type="number"
                   value={editingField.y || 0}
@@ -249,7 +259,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Width:</label>
+                <label>{t('fieldEditor.width')}:</label>
                 <input
                   type="number"
                   value={editingField.width || 100}
@@ -259,7 +269,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
               </div>
 
               <div className="form-group">
-                <label>Height:</label>
+                <label>{t('fieldEditor.height')}:</label>
                 <input
                   type="number"
                   value={editingField.height || 30}
@@ -270,7 +280,7 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
             </div>
 
             <div className="form-group">
-              <label>Page:</label>
+              <label>{t('fieldEditor.page')}:</label>
               <input
                 type="number"
                 value={editingField.page || 0}
@@ -281,10 +291,10 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }) {
 
             <div className="modal-actions">
               <button className="btn-success" onClick={handleSaveField}>
-                Save Changes
+                {t('fieldEditor.saveChanges')}
               </button>
               <button className="btn-secondary" onClick={() => setEditingField(null)}>
-                Cancel
+                {t('fieldEditor.cancel')}
               </button>
             </div>
           </div>

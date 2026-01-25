@@ -42,8 +42,26 @@
 }
 
 .file-label {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 1rem;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.file-label:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.file-label:active {
+  transform: translateY(0);
 }
 
 .selected-file {
