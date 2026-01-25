@@ -417,6 +417,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                         type="number"
                         className="field-number-input"
                         value={Math.round(selectedFieldData.x)}
+                        min="0"
                         onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'x', parseFloat(e.target.value) || 0)}
                       />
                     </div>
@@ -426,6 +427,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                         type="number"
                         className="field-number-input"
                         value={Math.round(selectedFieldData.y)}
+                        min="0"
                         onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'y', parseFloat(e.target.value) || 0)}
                       />
                     </div>
