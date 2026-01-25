@@ -21,6 +21,10 @@ module.exports = {
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        mono: ['Courier New', 'Courier', 'monospace'],
+      },
+      letterSpacing: {
+        'extra-wide': '0.5em',
       },
     },
   },

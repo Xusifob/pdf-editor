@@ -261,9 +261,7 @@
 
 /* Monospace input */
 .field-input-overlay.monospace {
-  font-family: 'Courier New', Courier, monospace;
-  letter-spacing: 0.5em;
-  @apply text-center;
+  @apply font-mono tracking-extra-wide text-center;
 }
 
 .loading {
