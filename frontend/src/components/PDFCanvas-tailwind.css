@@ -1,4 +1,4 @@
-/* PDF Canvas Component - Tailwind Compatible Styles */
+/* PDF Canvas Component - Tailwind v3 Compatible Styles */
 
 .pdf-canvas-container {
   @apply w-full flex flex-col bg-gray-100 rounded-lg overflow-hidden shadow-md outline-none;

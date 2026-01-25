@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "ajv": "^8.17.1",
     "axios": "^1.6.0",
     "i18next": "^25.8.0",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -17,7 +18,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "postinstall": "cp node_modules/react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs"
+    "postinstall": "cp node_modules/react-pdf/node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs || cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs || true"
   },
   "eslintConfig": {
     "extends": [
@@ -40,9 +41,9 @@
     "@types/node": "^25.0.10",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
-    "autoprefixer": "^10.4.23",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.0",
     "typescript": "^5.9.3"
   }
 }
