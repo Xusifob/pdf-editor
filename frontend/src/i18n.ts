@@ -18,8 +18,8 @@ i18n
       escapeValue: false
     },
     detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage']
+      order: ['navigator'],
+      caches: []
     }
   });
 

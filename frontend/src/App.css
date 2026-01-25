@@ -23,32 +23,6 @@
   opacity: 0.9;
 }
 
-.language-switcher {
-  margin-top: 1rem;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: center;
-}
-
-.language-switcher button {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 2px solid transparent;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-}
-
-.language-switcher button:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: none;
-  box-shadow: none;
-}
-
-.language-switcher button.active {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: white;
-}
-
 .App-main {
   flex: 1;
   padding: 2rem;

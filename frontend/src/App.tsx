@@ -8,7 +8,7 @@ import { PDFData, PDFField } from './types';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 function App() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [currentPDF, setCurrentPDF] = useState<PDFData | null>(null);
   const [fields, setFields] = useState<PDFField[]>([]);
 
@@ -47,29 +47,11 @@ function App() {
     }
   };
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-  };
-
   return (
     <div className="App">
       <header className="App-header">
         <h1>📄 {t('app.title')}</h1>
         <p>{t('app.subtitle')}</p>
-        <div className="language-switcher">
-          <button
-            onClick={() => changeLanguage('en')}
-            className={i18n.language === 'en' ? 'active' : ''}
-          >
-            🇬🇧 {t('language.english')}
-          </button>
-          <button
-            onClick={() => changeLanguage('fr')}
-            className={i18n.language === 'fr' ? 'active' : ''}
-          >
-            🇫🇷 {t('language.french')}
-          </button>
-        </div>
       </header>
       
       <main className="App-main">
