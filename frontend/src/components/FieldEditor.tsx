@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
-import './FieldEditor.css';
 import { PDFField, MessageState } from '../types';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
@@ -122,11 +121,11 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
   };
 
   return (
-    <div className="field-editor">
-      <div className="editor-header">
-        <h2>{t('fieldEditor.title')} ({fields.length})</h2>
+    <div className="bg-white rounded-xl shadow-md p-8 border border-gray-200">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">{t('fieldEditor.title')} ({fields.length})</h2>
         <button 
-          className="btn-success"
+          className="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
           onClick={() => setShowAddField(!showAddField)}
         >
           {showAddField ? t('fieldEditor.cancel') : `+ ${t('fieldEditor.addField')}`}
@@ -134,57 +133,70 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
       </div>
 
       {message && (
-        <div className={`message message-${message.type}`}>
+        <div className={`p-4 rounded-lg mb-4 animate-slide-in ${
+          message.type === 'success' 
+            ? 'bg-green-100 text-green-800 border border-green-200' 
+            : 'bg-red-100 text-red-800 border border-red-200'
+        }`}>
           {message.text}
         </div>
       )}
 
       {showAddField && (
-        <div className="add-field-form">
+        <div className="flex gap-4 mb-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
           <input
             type="text"
             placeholder={t('fieldEditor.fieldName')}
             value={newFieldName}
             onChange={(e) => setNewFieldName(e.target.value)}
-            className="field-input"
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
           />
-          <button className="btn-success" onClick={handleAddField}>
+          <button 
+            className="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
+            onClick={handleAddField}
+          >
             {t('fieldEditor.addFieldButton')}
           </button>
         </div>
       )}
 
-      <div className="fields-list">
+      <div className="flex flex-col gap-4">
         {fields.length === 0 ? (
-          <div className="no-fields">
-            <p>{t('fieldEditor.noFields')}</p>
+          <div className="text-center py-12 text-gray-500 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+            <p className="text-lg">{t('fieldEditor.noFields')}</p>
           </div>
         ) : (
           fields.map((field) => (
             <div
               key={field.name}
-              className={`field-item ${draggingField?.name === field.name ? 'dragging' : ''}`}
+              className={`bg-gradient-to-r from-gray-50 to-gray-100 border-2 rounded-xl p-4 transition-all duration-300 cursor-move ${
+                draggingField?.name === field.name 
+                  ? 'opacity-50 scale-95' 
+                  : 'border-gray-200 hover:border-primary-400 hover:shadow-lg'
+              }`}
               draggable
               onDragStart={() => handleDragStart(field)}
               onDragEnd={handleDragEnd}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => handleDrop(e, field)}
             >
-              <div className="field-header">
-                <div className="drag-handle">⋮⋮</div>
-                <div className="field-info">
-                  <strong>{field.name}</strong>
-                  <span className="field-type">{field.field_type}</span>
+              <div className="flex items-center gap-4">
+                <div className="text-2xl text-gray-400 cursor-grab active:cursor-grabbing">⋮⋮</div>
+                <div className="flex-1">
+                  <strong className="text-lg text-gray-900">{field.name}</strong>
+                  <span className="ml-3 text-sm text-primary-600 font-medium bg-primary-50 px-3 py-1 rounded-full">
+                    {field.field_type}
+                  </span>
                 </div>
-                <div className="field-actions">
+                <div className="flex gap-2">
                   <button
-                    className="btn-edit"
+                    className="px-4 py-2 bg-primary-500 text-white font-medium rounded-lg hover:bg-primary-600 transition-colors"
                     onClick={() => handleEditField(field)}
                   >
                     {t('fieldEditor.edit')}
                   </button>
                   <button
-                    className="btn-delete"
+                    className="px-4 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 transition-colors"
                     onClick={() => handleDeleteField(field.name)}
                   >
                     {t('fieldEditor.delete')}
@@ -193,16 +205,16 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
               </div>
               
               {field.value && (
-                <div className="field-value">
-                  {t('fieldEditor.value')}: {field.value}
+                <div className="mt-3 p-3 bg-white rounded-lg text-sm text-gray-700 border border-gray-200">
+                  {t('fieldEditor.value')}: <span className="font-medium">{field.value}</span>
                 </div>
               )}
 
               {field.x !== null && field.y !== null && (
-                <div className="field-position">
-                  {t('fieldEditor.position')}: ({field.x}, {field.y}) | 
-                  {t('fieldEditor.size')}: {field.width}x{field.height} | 
-                  {t('fieldEditor.page')}: {field.page}
+                <div className="mt-3 p-3 bg-white rounded-lg text-sm text-gray-600 border border-gray-200">
+                  {t('fieldEditor.position')}: <span className="font-medium">({field.x}, {field.y})</span> | 
+                  {t('fieldEditor.size')}: <span className="font-medium">{field.width}x{field.height}</span> | 
+                  {t('fieldEditor.page')}: <span className="font-medium">{field.page}</span>
                 </div>
               )}
             </div>
@@ -211,89 +223,95 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
       </div>
 
       {editingField && (
-        <div className="modal-overlay" onClick={() => setEditingField(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{t('fieldEditor.editField')}: {editingField.name}</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in" onClick={() => setEditingField(null)}>
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-11/12 max-h-[90vh] overflow-y-auto animate-slide-up shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('fieldEditor.editField')}: {editingField.name}</h3>
             
-            <div className="form-group">
-              <label>{t('fieldEditor.fieldType')}:</label>
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.fieldType')}:</label>
               <input
                 type="text"
                 value={editingField.field_type}
                 onChange={(e) => setEditingField({...editingField, field_type: e.target.value})}
-                className="field-input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               />
             </div>
 
-            <div className="form-group">
-              <label>{t('fieldEditor.value')}:</label>
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.value')}:</label>
               <input
                 type="text"
                 value={editingField.value || ''}
                 onChange={(e) => setEditingField({...editingField, value: e.target.value})}
-                className="field-input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               />
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t('fieldEditor.xPosition')}:</label>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.xPosition')}:</label>
                 <input
                   type="number"
                   value={editingField.x || 0}
                   onChange={(e) => setEditingField({...editingField, x: parseFloat(e.target.value) || 0})}
-                  className="field-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                 />
               </div>
 
-              <div className="form-group">
-                <label>{t('fieldEditor.yPosition')}:</label>
+              <div>
+                <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.yPosition')}:</label>
                 <input
                   type="number"
                   value={editingField.y || 0}
                   onChange={(e) => setEditingField({...editingField, y: parseFloat(e.target.value) || 0})}
-                  className="field-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                 />
               </div>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t('fieldEditor.width')}:</label>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.width')}:</label>
                 <input
                   type="number"
                   value={editingField.width || 100}
                   onChange={(e) => setEditingField({...editingField, width: parseFloat(e.target.value) || 100})}
-                  className="field-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                 />
               </div>
 
-              <div className="form-group">
-                <label>{t('fieldEditor.height')}:</label>
+              <div>
+                <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.height')}:</label>
                 <input
                   type="number"
                   value={editingField.height || 30}
                   onChange={(e) => setEditingField({...editingField, height: parseFloat(e.target.value) || 30})}
-                  className="field-input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                 />
               </div>
             </div>
 
-            <div className="form-group">
-              <label>{t('fieldEditor.page')}:</label>
+            <div className="mb-6">
+              <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.page')}:</label>
               <input
                 type="number"
                 value={editingField.page || 0}
                 onChange={(e) => setEditingField({...editingField, page: parseInt(e.target.value) || 0})}
-                className="field-input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
               />
             </div>
 
-            <div className="modal-actions">
-              <button className="btn-success" onClick={handleSaveField}>
+            <div className="flex gap-4 justify-end">
+              <button 
+                className="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition-colors"
+                onClick={handleSaveField}
+              >
                 {t('fieldEditor.saveChanges')}
               </button>
-              <button className="btn-secondary" onClick={() => setEditingField(null)}>
+              <button 
+                className="px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600 transition-colors"
+                onClick={() => setEditingField(null)}
+              >
                 {t('fieldEditor.cancel')}
               </button>
             </div>

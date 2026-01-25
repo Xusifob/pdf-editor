@@ -10,6 +10,7 @@ services:
       - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3003,http://localhost:3001
     networks:
       - pdf-editor-network
     restart: unless-stopped

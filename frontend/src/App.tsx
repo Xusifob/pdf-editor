@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import './App.css';
 import PDFUpload from './components/PDFUpload';
 import PDFCanvas from './components/PDFCanvas';
 import { PDFData, PDFField } from './types';
@@ -48,30 +47,38 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>📄 {t('app.title')}</h1>
-        <p>{t('app.subtitle')}</p>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+      <header className="bg-gradient-to-r from-primary-500 to-purple-600 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            <span className="text-5xl">📄</span>
+            {t('app.title')}
+          </h1>
+          <p className="text-lg text-purple-100">{t('app.subtitle')}</p>
+        </div>
       </header>
       
-      <main className="App-main">
-        <div className="container">
+      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
           {!currentPDF ? (
             <PDFUpload onPDFUploaded={handlePDFUploaded} />
           ) : (
-            <div>
-              <div className="pdf-info">
-                <h2>{currentPDF.filename}</h2>
-                <p>{t('pdfInfo.pages')}: {currentPDF.num_pages} | {t('pdfInfo.fields')}: {fields.length}</p>
-                <div className="pdf-actions">
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">{currentPDF.filename}</h2>
+                <p className="text-gray-600 mb-4">
+                  {t('pdfInfo.pages')}: <span className="font-semibold text-gray-900">{currentPDF.num_pages}</span> | {t('pdfInfo.fields')}: <span className="font-semibold text-gray-900">{fields.length}</span>
+                </p>
+                <div className="flex flex-wrap gap-3">
                   <button
-                    className="btn-primary"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white font-semibold rounded-lg shadow-md hover:bg-primary-600 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
                     onClick={handleDownloadPDF}
                   >
-                    📥 {t('pdfInfo.downloadPDF')}
+                    <span className="text-xl">📥</span>
+                    {t('pdfInfo.downloadPDF')}
                   </button>
                   <button
-                    className="btn-secondary"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
                     onClick={() => {
                       setCurrentPDF(null);
                       setFields([]);

@@ -3,7 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import { PDFField } from '../types';
-import './PDFCanvas.css';
+import './PDFCanvas-tailwind.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
