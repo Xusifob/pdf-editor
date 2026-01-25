@@ -11,9 +11,13 @@ import base64
 app = FastAPI(title="PDF Editor API", version="1.0.0")
 
 # Configure CORS
+# Allow multiple origins for development and production
+import os
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3003").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3003"],  # React dev server
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

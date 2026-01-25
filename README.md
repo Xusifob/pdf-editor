@@ -223,11 +223,40 @@ ports:
 ```
 
 ### CORS Issues
-If you encounter CORS errors, ensure the frontend URL is added to the CORS origins in `backend/main.py`:
+If you encounter CORS errors, configure the allowed origins using the `CORS_ORIGINS` environment variable:
 
-```python
-allow_origins=["http://localhost:3000", "http://localhost:3001"]
+**For local development**, add to `docker-compose.yml` or `.env`:
+```bash
+CORS_ORIGINS=http://localhost:3000,http://localhost:3003
 ```
+
+**For production**, set it to your production domain:
+```bash
+CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+```
+
+You can also set it in the backend environment or docker-compose.yml.
+
+### Empty PDFs Array Issue
+If you get `pdfs: []` after uploading in production:
+
+1. **Check CORS configuration**: Make sure your production domain is in `CORS_ORIGINS`
+2. **Set API URL correctly**: In production, set `REACT_APP_API_URL` to your actual backend URL
+3. **Check network requests**: Open browser DevTools → Network tab to see if upload request succeeds
+4. **Verify backend logs**: Check if the upload endpoint is receiving requests
+
+**Production deployment example**:
+```yaml
+backend:
+  environment:
+    - CORS_ORIGINS=https://your-frontend-domain.com
+    
+frontend:
+  environment:
+    - REACT_APP_API_URL=https://your-backend-domain.com
+```
+
+Note: The backend uses in-memory storage. Uploaded PDFs are lost when the server restarts. For production, consider implementing persistent storage (database, file system, or object storage).
 
 ### Docker Build Issues
 If Docker builds fail, try rebuilding without cache:
