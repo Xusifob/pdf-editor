@@ -201,6 +201,18 @@ docker compose up --build
 
 ## Troubleshooting
 
+### PDF.js Worker Version Mismatch
+If you see an error like "The API version does not match the Worker version", this means there's a version mismatch between PDF.js libraries. This has been fixed by:
+
+1. **Removing standalone pdfjs-dist**: The `package.json` only uses the version bundled with `react-pdf`
+2. **Automatic worker copy**: A postinstall script copies the correct worker file to the `public` directory
+3. **Manual fix** (if needed):
+   ```bash
+   docker-compose exec frontend npm run postinstall
+   ```
+
+The worker file should always match the `pdfjs-dist` version used by `react-pdf`.
+
 ### Port Already in Use
 If ports 3000 or 8000 are already in use, modify the port mappings in `docker-compose.yml`:
 
