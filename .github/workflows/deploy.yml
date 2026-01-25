@@ -9,6 +9,7 @@ env:
   SSH_HOST: ${{ vars.SSH_HOST }}
   SSH_USER: ${{ vars.SSH_USER }}
   DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/pdf-editor' }}
+  PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.11' }}
 
 jobs:
   build-and-deploy:
@@ -20,40 +21,61 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-      - name: Build Docker images
+      - name: Build frontend
         run: |
-          docker compose build
+          cd frontend
+          npm ci
+          npm run build
 
-      - name: Save Docker images
+      - name: Create deployment package
         run: |
-          # Docker Compose uses the project directory name as prefix
-          # Images are typically named: <project>-<service> or <project>_<service>
-          PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/-/g')
+          mkdir -p deploy_package
+          cp -r backend deploy_package/
+          cp -r frontend/build deploy_package/frontend
           
-          # Try to find images - docker compose typically uses project-service naming
-          BACKEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]backend" | head -n1)
-          FRONTEND_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "${PROJECT_NAME}[-_]frontend" | head -n1)
+          # Create a deployment script
+          cat > deploy_package/start.sh << 'STARTSCRIPT'
+          #!/bin/bash
+          # Start script for PDF Editor
           
-          # Validate that images were found
-          if [ -z "$BACKEND_IMAGE" ] || [ -z "$FRONTEND_IMAGE" ]; then
-            echo "Error: Could not find backend or frontend Docker images"
-            echo "Project name: $PROJECT_NAME"
-            echo "Expected pattern: ${PROJECT_NAME}-backend or ${PROJECT_NAME}_backend"
-            echo "Backend image found: $BACKEND_IMAGE"
-            echo "Frontend image found: $FRONTEND_IMAGE"
-            echo ""
-            echo "Available images:"
-            docker images
-            exit 1
+          # Kill any existing processes
+          pkill -f "uvicorn main:app" || true
+          
+          # Start backend
+          cd backend
+          nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
+          echo $! > ../backend.pid
+          
+          echo "Backend started on port 8000 (PID: $(cat ../backend.pid))"
+          echo "Frontend static files available in frontend/ directory"
+          STARTSCRIPT
+          
+          chmod +x deploy_package/start.sh
+          
+          # Create a stop script
+          cat > deploy_package/stop.sh << 'STOPSCRIPT'
+          #!/bin/bash
+          # Stop script for PDF Editor
+          
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid) 2>/dev/null || true
+            rm -f backend.pid
+            echo "Backend stopped"
+          else
+            pkill -f "uvicorn main:app" || true
+            echo "Stopped any running backend processes"
           fi
+          STOPSCRIPT
           
-          echo "Saving backend image: $BACKEND_IMAGE"
-          echo "Saving frontend image: $FRONTEND_IMAGE"
-          docker save -o backend-image.tar $BACKEND_IMAGE
-          docker save -o frontend-image.tar $FRONTEND_IMAGE
+          chmod +x deploy_package/stop.sh
+          
+          # Create archive
+          tar -czf deploy.tar.gz -C deploy_package .
 
       - name: Setup SSH key
         run: |
@@ -64,44 +86,59 @@ jobs:
 
       - name: Copy files to server
         run: |
-          scp -i ~/.ssh/deploy_key \
-            backend-image.tar frontend-image.tar docker-compose.yml \
+          scp -i ~/.ssh/deploy_key deploy.tar.gz \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:/tmp/
 
       - name: Deploy on server
         run: |
           DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          PYTHON_VERSION="${{ env.PYTHON_VERSION }}"
           ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
             bash -s << EOF
-            # Load Docker images
-            docker load -i /tmp/backend-image.tar
-            docker load -i /tmp/frontend-image.tar
+            set -e
             
-            # Create deployment directory and navigate to it
+            # Create deployment directory
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
             
-            # Stop existing containers if running
-            if [ -f docker-compose.yml ]; then
-              echo "Stopping existing containers..."
-              docker compose down
-              if [ \$? -ne 0 ]; then
-                echo "Warning: Failed to stop containers, but continuing with deployment"
+            # Stop existing server if running
+            if [ -f stop.sh ]; then
+              echo "Stopping existing server..."
+              ./stop.sh
+            fi
+            
+            # Extract new version
+            tar -xzf /tmp/deploy.tar.gz -C "$DEPLOY_PATH"
+            
+            # Install Python dependencies
+            cd backend
+            echo "Installing Python dependencies..."
+            python$PYTHON_VERSION -m pip install --user -r requirements.txt
+            cd ..
+            
+            # Start the server
+            echo "Starting server..."
+            ./start.sh
+            
+            # Wait a moment for startup
+            sleep 2
+            
+            # Check if backend is running
+            if [ -f backend.pid ]; then
+              if ps -p \$(cat backend.pid) > /dev/null; then
+                echo "✓ Backend is running (PID: \$(cat backend.pid))"
+              else
+                echo "✗ Backend failed to start"
+                cat backend.log
+                exit 1
               fi
             fi
             
-            # Copy new docker-compose file
-            cp /tmp/docker-compose.yml .
-            
-            # Start new containers
-            docker compose up -d
-            
             # Cleanup
-            rm -f /tmp/backend-image.tar /tmp/frontend-image.tar /tmp/docker-compose.yml
+            rm -f /tmp/deploy.tar.gz
             
-            # Show status
-            docker compose ps
+            echo "Deployment completed successfully!"
           EOF
 
       - name: Cleanup SSH key
