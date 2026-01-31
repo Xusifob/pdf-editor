@@ -61,8 +61,12 @@ jobs:
           
           set -e
           
+          # Get the directory where this script is located (the extracted temp dir)
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          
           echo "=== PDF Editor Deployment ==="
           echo "Deployment path: $DEPLOY_PATH"
+          echo "Source path: $SCRIPT_DIR"
           
           # Stop backend service
           echo "Stopping backend service..."
@@ -78,10 +82,10 @@ jobs:
             sudo mv "$DEPLOY_PATH/frontend" "$DEPLOY_PATH/frontend_backup_$TIMESTAMP"
           fi
           
-          # Copy new files
+          # Copy new files (using absolute paths to match sudoers configuration)
           echo "Copying new files..."
-          sudo cp -r backend "$DEPLOY_PATH/"
-          sudo cp -r frontend "$DEPLOY_PATH/"
+          sudo cp -r "$SCRIPT_DIR/backend" "$DEPLOY_PATH/"
+          sudo cp -r "$SCRIPT_DIR/frontend" "$DEPLOY_PATH/"
           
           # Set proper permissions
           echo "Setting permissions..."
