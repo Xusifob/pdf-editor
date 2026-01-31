@@ -59,8 +59,6 @@ sudo chown -R pdfmerger:pdfmerger /var/www/pdf.malahieude.net
 # sudo chmod -R 775 /var/www/pdf.malahieude.net
 ```
 
-**Note**: The deployment script uses `systemctl --user` to manage the backend service, which means the service runs as a user service (not a system service). No sudo privileges are required.
-
 ### 3. Create Deployment Directory
 
 ```bash
@@ -110,7 +108,7 @@ sudo systemctl restart apache2
 
 ### 5. Create User systemd Service for Backend
 
-The backend service runs as a user service (not a system service), which allows the deployment user to manage it without sudo.
+The backend service runs as a user service (not a system service), which allows the deployment user to manage it without sudo. The deployment script uses `systemctl --user` commands to control the service, requiring no sudo privileges.
 
 Create a user systemd service directory:
 

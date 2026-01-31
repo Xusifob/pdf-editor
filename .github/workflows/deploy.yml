@@ -112,12 +112,18 @@ jobs:
             rm -rf /var/www/pdf.malahieude.net/frontend/*
             cp -r "$DEPLOY_PATH/frontend/build/"* /var/www/pdf.malahieude.net/frontend/
           else
-            echo "Warning: /var/www/pdf.malahieude.net/frontend not accessible, skipping frontend deployment to Apache"
+            echo "Warning: /var/www/pdf.malahieude.net/frontend not accessible"
+            echo "Verify that the deployment user has write permissions to this directory"
+            echo "Skipping frontend deployment to Apache"
           fi
           
           # Restart services
           echo "Restarting services..."
-          systemctl --user restart pdfmerger || echo "Warning: Could not restart pdfmerger service"
+          systemctl --user restart pdfmerger || {
+            echo "Warning: Could not restart pdfmerger service"
+            echo "Check service status with: systemctl --user status pdfmerger"
+            echo "Check logs with: journalctl --user -u pdfmerger"
+          }
           
           # Verify backend service
           echo "Verifying backend service..."
