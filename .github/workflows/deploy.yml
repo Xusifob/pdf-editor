@@ -162,30 +162,32 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
-            "DEPLOY_PATH='${{ env.DEPLOY_PATH }}' PYTHON_VERSION='${{ env.PYTHON_VERSION }}'" \
-            bash -s << 'EOF'
+            bash -s << EOF
             set -e
             
-            # Get temp directory with deployment package
-            TEMP_DIR=$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
+            # Set deployment variables
+            export DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+            export PYTHON_VERSION="${{ env.PYTHON_VERSION }}"
             
-            if [ -z "$TEMP_DIR" ] || [ ! -f "$TEMP_DIR/deploy.tar.gz" ]; then
+            # Get temp directory with deployment package
+            TEMP_DIR=\$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
+            
+            if [ -z "\$TEMP_DIR" ] || [ ! -f "\$TEMP_DIR/deploy.tar.gz" ]; then
               echo "Error: Deployment package not found"
               exit 1
             fi
             
+            echo "Run DEPLOY_PATH=\"\$DEPLOY_PATH\""
             echo "Extracting deployment package..."
-            tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$TEMP_DIR"
+            tar -xzf "\$TEMP_DIR/deploy.tar.gz" -C "\$TEMP_DIR"
             
             # Run deployment script with environment variables
             echo "Running deployment script..."
-            cd "$TEMP_DIR"
-            export DEPLOY_PATH="${DEPLOY_PATH}"
-            export PYTHON_VERSION="${PYTHON_VERSION}"
+            cd "\$TEMP_DIR"
             ./deploy.sh
             
             # Cleanup temporary directory
-            rm -rf "$TEMP_DIR"
+            rm -rf "\$TEMP_DIR"
             
             echo "Deployment completed!"
           EOF
