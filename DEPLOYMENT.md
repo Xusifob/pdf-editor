@@ -71,20 +71,25 @@ pdfmerger ALL=(ALL) NOPASSWD: /bin/systemctl restart apache2
 pdfmerger ALL=(ALL) NOPASSWD: /bin/systemctl status apache2
 
 # Allow file operations in deployment directory
+# Note: Commands must be run from /tmp/tmp.* directory created by deployment script
 pdfmerger ALL=(ALL) NOPASSWD: /bin/mv /home/pdfmerger/pdf-editor/backend /home/pdfmerger/pdf-editor/backend_backup_*
 pdfmerger ALL=(ALL) NOPASSWD: /bin/mv /home/pdfmerger/pdf-editor/frontend /home/pdfmerger/pdf-editor/frontend_backup_*
-pdfmerger ALL=(ALL) NOPASSWD: /bin/cp -r * /home/pdfmerger/pdf-editor/
-pdfmerger ALL=(ALL) NOPASSWD: /bin/chown -R root\:root /home/pdfmerger/pdf-editor/backend
-pdfmerger ALL=(ALL) NOPASSWD: /bin/chown -R root\:root /home/pdfmerger/pdf-editor/frontend
+pdfmerger ALL=(ALL) NOPASSWD: /bin/cp -r /tmp/tmp.*/backend /home/pdfmerger/pdf-editor/
+pdfmerger ALL=(ALL) NOPASSWD: /bin/cp -r /tmp/tmp.*/frontend /home/pdfmerger/pdf-editor/
+pdfmerger ALL=(ALL) NOPASSWD: /bin/chown -R www-data\:www-data /home/pdfmerger/pdf-editor/backend
+pdfmerger ALL=(ALL) NOPASSWD: /bin/chown -R www-data\:www-data /home/pdfmerger/pdf-editor/frontend
 pdfmerger ALL=(ALL) NOPASSWD: /bin/chmod -R 755 /home/pdfmerger/pdf-editor
 
 # Allow file operations in Apache web directory
+# Restrict source to deployment directory only
 pdfmerger ALL=(ALL) NOPASSWD: /bin/rm -rf /var/www/pdf.malahieude.net/frontend/*
-pdfmerger ALL=(ALL) NOPASSWD: /bin/cp -r * /var/www/pdf.malahieude.net/frontend/
+pdfmerger ALL=(ALL) NOPASSWD: /bin/cp -r /home/pdfmerger/pdf-editor/frontend/build/* /var/www/pdf.malahieude.net/frontend/
 
-# Allow journalctl for debugging
-pdfmerger ALL=(ALL) NOPASSWD: /bin/journalctl -u pdfmerger *
-pdfmerger ALL=(ALL) NOPASSWD: /bin/journalctl -u apache2 *
+# Allow journalctl for debugging with specific flags only
+pdfmerger ALL=(ALL) NOPASSWD: /bin/journalctl -u pdfmerger -n *
+pdfmerger ALL=(ALL) NOPASSWD: /bin/journalctl -u pdfmerger --lines=*
+pdfmerger ALL=(ALL) NOPASSWD: /bin/journalctl -u apache2 -n *
+pdfmerger ALL=(ALL) NOPASSWD: /bin/journalctl -u apache2 --lines=*
 ```
 
 Set proper permissions on the sudoers file:

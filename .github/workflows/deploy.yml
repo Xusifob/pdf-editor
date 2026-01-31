@@ -85,8 +85,8 @@ jobs:
           
           # Set proper permissions
           echo "Setting permissions..."
-          sudo chown -R root:root "$DEPLOY_PATH/backend"
-          sudo chown -R root:root "$DEPLOY_PATH/frontend"
+          sudo chown -R www-data:www-data "$DEPLOY_PATH/backend"
+          sudo chown -R www-data:www-data "$DEPLOY_PATH/frontend"
           sudo chmod -R 755 "$DEPLOY_PATH"
           
           # Install Python dependencies
@@ -162,35 +162,38 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
-            bash -s << EOF
+            bash -s << 'EOF'
             set -e
             
-            # Set deployment variables
-            export DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
-            export PYTHON_VERSION="${{ env.PYTHON_VERSION }}"
+            # Set deployment variables from environment passed via SSH
+            export DEPLOY_PATH="$DEPLOY_PATH"
+            export PYTHON_VERSION="$PYTHON_VERSION"
             
             # Get temp directory with deployment package
-            TEMP_DIR=\$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
+            TEMP_DIR=$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
             
-            if [ -z "\$TEMP_DIR" ] || [ ! -f "\$TEMP_DIR/deploy.tar.gz" ]; then
+            if [ -z "$TEMP_DIR" ] || [ ! -f "$TEMP_DIR/deploy.tar.gz" ]; then
               echo "Error: Deployment package not found"
               exit 1
             fi
             
-            echo "Run DEPLOY_PATH=\"\$DEPLOY_PATH\""
+            echo "Run DEPLOY_PATH=\"$DEPLOY_PATH\""
             echo "Extracting deployment package..."
-            tar -xzf "\$TEMP_DIR/deploy.tar.gz" -C "\$TEMP_DIR"
+            tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$TEMP_DIR"
             
             # Run deployment script with environment variables
             echo "Running deployment script..."
-            cd "\$TEMP_DIR"
+            cd "$TEMP_DIR"
             ./deploy.sh
             
             # Cleanup temporary directory
-            rm -rf "\$TEMP_DIR"
+            rm -rf "$TEMP_DIR"
             
             echo "Deployment completed!"
           EOF
+        env:
+          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
 
       - name: Cleanup SSH key
         if: always()
