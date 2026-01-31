@@ -266,6 +266,10 @@ docker-compose build --no-cache
 docker-compose up
 ```
 
+## Production Deployment
+
+For production deployment instructions, including server setup, SSL configuration, and automated CI/CD with GitHub Actions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Contributing
 
 1. Fork the repository

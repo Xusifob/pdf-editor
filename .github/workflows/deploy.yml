@@ -85,8 +85,8 @@ jobs:
           
           # Set proper permissions
           echo "Setting permissions..."
-          sudo chown -R root:root "$DEPLOY_PATH/backend"
-          sudo chown -R root:root "$DEPLOY_PATH/frontend"
+          sudo chown -R www-data:www-data "$DEPLOY_PATH/backend"
+          sudo chown -R www-data:www-data "$DEPLOY_PATH/frontend"
           sudo chmod -R 755 "$DEPLOY_PATH"
           
           # Install Python dependencies
@@ -164,7 +164,7 @@ jobs:
           PYTHON_VERSION="${{ env.PYTHON_VERSION }}"
           ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
-            bash -s << 'EOF'
+            "export DEPLOY_PATH='$DEPLOY_PATH' PYTHON_VERSION='$PYTHON_VERSION' && bash -s" << 'EOF'
             set -e
             
             # Get temp directory with deployment package
@@ -175,10 +175,11 @@ jobs:
               exit 1
             fi
             
+            echo "Using DEPLOY_PATH=\"$DEPLOY_PATH\" PYTHON_VERSION=\"$PYTHON_VERSION\""
             echo "Extracting deployment package..."
             tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$TEMP_DIR"
             
-            # Run deployment script
+            # Run deployment script with environment variables
             echo "Running deployment script..."
             cd "$TEMP_DIR"
             ./deploy.sh
@@ -188,9 +189,6 @@ jobs:
             
             echo "Deployment completed!"
           EOF
-        env:
-          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
 
       - name: Cleanup SSH key
         if: always()
