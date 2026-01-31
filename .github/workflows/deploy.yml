@@ -160,14 +160,12 @@ jobs:
 
       - name: Deploy on server
         run: |
+          DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+          PYTHON_VERSION="${{ env.PYTHON_VERSION }}"
           ssh -i ~/.ssh/deploy_key \
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
-            bash -s << 'EOF'
+            "export DEPLOY_PATH='$DEPLOY_PATH' PYTHON_VERSION='$PYTHON_VERSION' && bash -s" << 'EOF'
             set -e
-            
-            # Set deployment variables from environment passed via SSH
-            export DEPLOY_PATH="$DEPLOY_PATH"
-            export PYTHON_VERSION="$PYTHON_VERSION"
             
             # Get temp directory with deployment package
             TEMP_DIR=$(ls -td /tmp/tmp.* 2>/dev/null | head -1)
@@ -177,7 +175,7 @@ jobs:
               exit 1
             fi
             
-            echo "Run DEPLOY_PATH=\"$DEPLOY_PATH\""
+            echo "Using DEPLOY_PATH=\"$DEPLOY_PATH\" PYTHON_VERSION=\"$PYTHON_VERSION\""
             echo "Extracting deployment package..."
             tar -xzf "$TEMP_DIR/deploy.tar.gz" -C "$TEMP_DIR"
             
@@ -191,9 +189,6 @@ jobs:
             
             echo "Deployment completed!"
           EOF
-        env:
-          DEPLOY_PATH: ${{ env.DEPLOY_PATH }}
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
 
       - name: Cleanup SSH key
         if: always()
