@@ -68,9 +68,13 @@ jobs:
           echo "Deployment path: $DEPLOY_PATH"
           echo "Source path: $SCRIPT_DIR"
           
-          # Stop backend service
+          # Stop backend service if it exists
           echo "Stopping backend service..."
-          systemctl --user stop pdfmerger || true
+          if systemctl --user list-unit-files pdfmerger.service &>/dev/null; then
+            systemctl --user stop pdfmerger || echo "Warning: Could not stop pdfmerger service"
+          else
+            echo "Note: pdfmerger.service not yet configured (this is expected on first deployment)"
+          fi
           
           # Backup existing files
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -87,9 +91,10 @@ jobs:
           cp -r "$SCRIPT_DIR/backend" "$DEPLOY_PATH/"
           cp -r "$SCRIPT_DIR/frontend" "$DEPLOY_PATH/"
           
-          # Set proper permissions
+          # Set proper permissions only on deployed directories
           echo "Setting permissions..."
-          chmod -R 755 "$DEPLOY_PATH"
+          chmod -R 755 "$DEPLOY_PATH/backend"
+          chmod -R 755 "$DEPLOY_PATH/frontend"
           
           # Install Python dependencies
           echo "Installing Python dependencies..."
@@ -119,20 +124,66 @@ jobs:
           
           # Restart services
           echo "Restarting services..."
-          systemctl --user restart pdfmerger || {
-            echo "Warning: Could not restart pdfmerger service"
-            echo "Check service status with: systemctl --user status pdfmerger"
-            echo "Check logs with: journalctl --user -u pdfmerger"
-          }
+          if systemctl --user list-unit-files pdfmerger.service &>/dev/null; then
+            systemctl --user restart pdfmerger || {
+              echo "Warning: Could not restart pdfmerger service"
+              echo "Check service status with: systemctl --user status pdfmerger"
+              echo "Check logs with: journalctl --user -u pdfmerger"
+            }
+          else
+            echo ""
+            echo "============================================"
+            echo "IMPORTANT: Backend service is not configured"
+            echo "============================================"
+            echo ""
+            echo "The pdfmerger.service is not set up. To configure it:"
+            echo ""
+            echo "1. Create the service directory:"
+            echo "   mkdir -p ~/.config/systemd/user"
+            echo ""
+            echo "2. Create the service file:"
+            echo "   nano ~/.config/systemd/user/pdfmerger.service"
+            echo ""
+            echo "3. Add this content:"
+            echo "   [Unit]"
+            echo "   Description=PDF Editor Backend API"
+            echo "   After=network.target"
+            echo ""
+            echo "   [Service]"
+            echo "   Type=simple"
+            echo "   WorkingDirectory=$DEPLOY_PATH/backend"
+            echo "   Environment=\"PATH=$DEPLOY_PATH/backend/venv/bin\""
+            echo "   ExecStart=$DEPLOY_PATH/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000"
+            echo "   Restart=always"
+            echo "   RestartSec=3"
+            echo ""
+            echo "   [Install]"
+            echo "   WantedBy=default.target"
+            echo ""
+            echo "4. Enable and start the service:"
+            echo "   systemctl --user daemon-reload"
+            echo "   systemctl --user enable pdfmerger"
+            echo "   systemctl --user start pdfmerger"
+            echo ""
+            echo "5. Enable linger to keep service running after logout (requires sudo):"
+            echo "   sudo loginctl enable-linger \$USER"
+            echo ""
+            echo "See DEPLOYMENT.md for more details."
+            echo "============================================"
+          fi
           
           # Verify backend service
           echo "Verifying backend service..."
-          if systemctl --user is-active --quiet pdfmerger; then
-            echo "✓ Backend service is running"
+          if systemctl --user list-unit-files pdfmerger.service &>/dev/null; then
+            if systemctl --user is-active --quiet pdfmerger; then
+              echo "✓ Backend service is running"
+            else
+              echo "✗ Backend service failed to start"
+              systemctl --user status pdfmerger || true
+              exit 1
+            fi
           else
-            echo "✗ Backend service failed to start"
-            systemctl --user status pdfmerger || true
-            exit 1
+            echo "⚠ Backend service not configured - deployment files are in place but service needs to be set up manually"
           fi
           
           echo "✓ Deployment completed successfully!"

@@ -2,19 +2,46 @@
 
 This directory contains the GitHub Actions workflow for automated deployment.
 
+## Important Note
+
+**For comprehensive deployment documentation, see [DEPLOYMENT.md](../../DEPLOYMENT.md)** in the root directory, which includes:
+- Complete server setup instructions
+- Service configuration (systemd user services)
+- Automated setup scripts
+- Troubleshooting guides
+- Security best practices
+
+This README provides workflow-specific details.
+
 ## Workflow: Deploy to Server
 
 The `deploy.yml` workflow automatically deploys the PDF Editor application to a remote server whenever code is pushed to the `master` branch.
 
 ### How It Works
 
-1. **Triggers**: Automatically runs on push to `master` branch
+1. **Triggers**: Automatically runs on push to `master` or `main` branch
 2. **Validates**: Checks that required SSH configuration variables are set
 3. **Builds**: Compiles TypeScript and creates production build of the React frontend
 4. **Type Checks**: Runs TypeScript type checking to catch errors before deployment
 5. **Packages**: Bundles backend and frontend with deployment scripts
 6. **Transfers**: Securely copies package to the remote server via SSH using a secure temporary directory
-7. **Deploys**: Installs dependencies and starts Python server
+7. **Deploys**: Runs the deployment script which:
+   - Stops the backend service (if it exists)
+   - Creates timestamped backups of existing backend and frontend
+   - Copies new files to the deployment directory
+   - Sets permissions on backend and frontend directories only (not .git or backups)
+   - Installs Python dependencies in a virtual environment
+   - Deploys frontend to Apache web directory (if accessible)
+   - Restarts the backend service (if configured)
+   - Provides setup instructions if service is not yet configured
+
+### Recent Improvements
+
+**Fixed Deployment Issues (Feb 2026)**:
+- **Permission errors resolved**: chmod now only applies to backend and frontend directories, not .git or backup directories
+- **Service handling improved**: Gracefully handles missing systemd service with clear setup instructions
+- **Better error messages**: Deployment script now provides step-by-step guidance when service is not configured
+- **Automated setup script**: New `scripts/setup-service.sh` for easy service configuration
 
 ### Required Configuration
 
@@ -214,41 +241,76 @@ After deployment, the structure in `DEPLOY_PATH` will be:
 - Set up proper logging and monitoring
 - Regular security updates for all system packages
 
-### Using a Process Manager (Recommended for Production)
+### Using systemd User Services (Recommended for Production)
 
-For production deployments, it's recommended to use a process manager like **systemd** to manage the backend service:
+The deployment now uses **systemd user services** instead of system services, which allows the deployment user to manage services without sudo privileges.
 
-1. Create a systemd service file on your server:
+**Quick Setup (Automated)**:
+
+Use the provided setup script after the first deployment:
+
 ```bash
-sudo nano /etc/systemd/system/pdf-editor.service
+# As the deployment user (e.g., pdfmerger)
+cd /home/pdfmerger/pdf-editor
+./scripts/setup-service.sh
+sudo loginctl enable-linger $USER
 ```
 
-2. Add the following content (adjust paths as needed):
+**Manual Setup**:
+
+1. Create the service directory:
+```bash
+mkdir -p ~/.config/systemd/user
+```
+
+2. Create the service file:
+```bash
+nano ~/.config/systemd/user/pdfmerger.service
+```
+
+Add the following content (adjust paths as needed):
 ```ini
 [Unit]
-Description=PDF Editor Backend
+Description=PDF Editor Backend API
 After=network.target
 
 [Service]
 Type=simple
-User=your-user
-WorkingDirectory=/opt/pdf-editor/backend
-ExecStart=/usr/bin/python3.11 -m uvicorn main:app --host 0.0.0.0 --port 8000
+WorkingDirectory=/home/pdfmerger/pdf-editor/backend
+Environment="PATH=/home/pdfmerger/pdf-editor/backend/venv/bin"
+ExecStart=/home/pdfmerger/pdf-editor/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
-RestartSec=10
+RestartSec=3
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
 
 3. Enable and start the service:
 ```bash
-sudo systemctl enable pdf-editor
-sudo systemctl start pdf-editor
+systemctl --user daemon-reload
+systemctl --user enable pdfmerger
+systemctl --user start pdfmerger
 ```
 
-4. Update deployment script to use systemd:
-Modify the start.sh to use `sudo systemctl restart pdf-editor` instead of running uvicorn directly.
+4. Enable linger (keeps service running after logout):
+```bash
+sudo loginctl enable-linger $USER
+```
+
+5. Check service status:
+```bash
+systemctl --user status pdfmerger
+journalctl --user -u pdfmerger -f
+```
+
+**Benefits of User Services**:
+- No sudo required for service management
+- Deployment user controls their own services
+- Automatic integration with deployment workflow
+- Better security through privilege separation
+
+See [DEPLOYMENT.md](../../DEPLOYMENT.md) for complete documentation.
 
 ### Customization
 

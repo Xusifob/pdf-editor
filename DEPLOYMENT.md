@@ -2,6 +2,63 @@
 
 This guide explains how to set up and deploy the PDF Editor application to a production server.
 
+## Quick Start: Backend Service Setup
+
+If you've just deployed and see a message about the backend service not being configured, you have two options:
+
+### Option 1: Automated Setup (Recommended)
+
+Use the provided setup script:
+
+```bash
+# As the deployment user (e.g., pdfmerger)
+cd /home/pdfmerger/pdf-editor
+./scripts/setup-service.sh
+
+# Then enable linger (requires sudo)
+sudo loginctl enable-linger $USER
+```
+
+### Option 2: Manual Setup
+
+```bash
+# As the deployment user (e.g., pdfmerger)
+
+# 1. Create service directory
+mkdir -p ~/.config/systemd/user
+
+# 2. Create service file
+cat > ~/.config/systemd/user/pdfmerger.service << 'EOF'
+[Unit]
+Description=PDF Editor Backend API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pdfmerger/pdf-editor/backend
+Environment="PATH=/home/pdfmerger/pdf-editor/backend/venv/bin"
+ExecStart=/home/pdfmerger/pdf-editor/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+EOF
+
+# 3. Enable and start the service
+systemctl --user daemon-reload
+systemctl --user enable pdfmerger
+systemctl --user start pdfmerger
+
+# 4. Enable linger to keep service running after logout (requires sudo)
+sudo loginctl enable-linger $USER
+
+# 5. Verify the service is running
+systemctl --user status pdfmerger
+```
+
+For detailed setup instructions, continue reading below.
+
 ## Prerequisites
 
 ### Server Requirements
