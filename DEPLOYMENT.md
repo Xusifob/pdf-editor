@@ -310,8 +310,8 @@ The deployment script (`deploy.sh`) performs the following steps:
 
 The deployment script **automatically preserves** the backend `.env` file during deployments. This ensures that your production configuration (database credentials, API keys, etc.) persists across deployments.
 
-- **On first deployment**: No `.env` file exists yet - you'll need to create it manually after deployment
-- **On subsequent deployments**: The existing `.env` file is automatically preserved and restored
+- **On first deployment**: No `.env` file exists yet - you'll need to create it manually after deployment.
+- **On subsequent deployments**: The existing `.env` file is automatically preserved and restored.
 
 To create or update the `.env` file after deployment:
 
