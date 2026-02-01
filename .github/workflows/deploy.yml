@@ -83,7 +83,7 @@ jobs:
           # Preserve .env file from backend if it exists
           if [ -f "$DEPLOY_PATH/backend/.env" ]; then
             echo "Preserving backend .env file..."
-            cp "$DEPLOY_PATH/backend/.env" "$DEPLOY_PATH/.env.backup"
+            cp "$DEPLOY_PATH/backend/.env" "$DEPLOY_PATH/.env.backup_$TIMESTAMP"
           fi
           
           if [ -d "$DEPLOY_PATH/backend" ]; then
@@ -99,10 +99,9 @@ jobs:
           cp -r "$SCRIPT_DIR/frontend" "$DEPLOY_PATH/"
           
           # Restore .env file if it was backed up
-          if [ -f "$DEPLOY_PATH/.env.backup" ]; then
+          if [ -f "$DEPLOY_PATH/.env.backup_$TIMESTAMP" ]; then
             echo "Restoring backend .env file..."
-            cp "$DEPLOY_PATH/.env.backup" "$DEPLOY_PATH/backend/.env"
-            rm "$DEPLOY_PATH/.env.backup"
+            mv "$DEPLOY_PATH/.env.backup_$TIMESTAMP" "$DEPLOY_PATH/backend/.env"
             echo "✓ Backend .env file restored"
           fi
           
