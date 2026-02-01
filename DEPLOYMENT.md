@@ -295,14 +295,32 @@ The deployment script (`deploy.sh`) performs the following steps:
 
 1. **Stop Backend Service**: Stops the running user backend service with `systemctl --user stop`
 2. **Backup Existing Files**: Creates timestamped backups of current backend and frontend
-3. **Copy New Files**: Copies new backend and frontend files to deployment directory
-4. **Set Permissions**: Sets proper file permissions (755)
-5. **Install Dependencies**: Updates Python virtual environment with new dependencies
-6. **Deploy Frontend**: Copies built frontend files to web-accessible directory (if writable)
-7. **Restart Services**: Restarts the user backend service with `systemctl --user restart`
-8. **Verify Services**: Checks that the backend service is running correctly
+3. **Preserve Configuration**: Saves the existing backend `.env` file before backup (if it exists)
+4. **Copy New Files**: Copies new backend and frontend files to deployment directory
+5. **Restore Configuration**: Restores the preserved `.env` file to the new backend directory
+6. **Set Permissions**: Sets proper file permissions (755)
+7. **Install Dependencies**: Updates Python virtual environment with new dependencies
+8. **Deploy Frontend**: Copies built frontend files to web-accessible directory (if writable)
+9. **Restart Services**: Restarts the user backend service with `systemctl --user restart`
+10. **Verify Services**: Checks that the backend service is running correctly
 
 **Note**: All operations run without sudo. The deployment user must have proper file permissions.
+
+### Environment File Preservation
+
+The deployment script **automatically preserves** the backend `.env` file during deployments. This ensures that your production configuration (database credentials, API keys, etc.) persists across deployments.
+
+- **On first deployment**: No `.env` file exists yet - you'll need to create it manually after deployment.
+- **On subsequent deployments**: The existing `.env` file is automatically preserved and restored.
+
+To create or update the `.env` file after deployment:
+
+```bash
+# As deployment user
+cd /home/pdfmerger/pdf-editor/backend
+nano .env  # Edit your production configuration
+systemctl --user restart pdfmerger  # Restart to apply changes
+```
 
 ## Troubleshooting
 

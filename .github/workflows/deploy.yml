@@ -79,6 +79,18 @@ jobs:
           # Backup existing files
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           echo "Creating backup..."
+          
+          # Preserve .env file from backend if it exists
+          if [ -f "$DEPLOY_PATH/backend/.env" ]; then
+            echo "Preserving backend .env file..."
+            if cp "$DEPLOY_PATH/backend/.env" "$DEPLOY_PATH/.env.backup_$TIMESTAMP"; then
+              echo "✓ Backend .env file backed up successfully"
+            else
+              echo "✗ Failed to backup .env file"
+              exit 1
+            fi
+          fi
+          
           if [ -d "$DEPLOY_PATH/backend" ]; then
             mv "$DEPLOY_PATH/backend" "$DEPLOY_PATH/backend_backup_$TIMESTAMP"
           fi
@@ -90,6 +102,18 @@ jobs:
           echo "Copying new files..."
           cp -r "$SCRIPT_DIR/backend" "$DEPLOY_PATH/"
           cp -r "$SCRIPT_DIR/frontend" "$DEPLOY_PATH/"
+          
+          # Restore .env file if it was backed up
+          if [ -f "$DEPLOY_PATH/.env.backup_$TIMESTAMP" ]; then
+            if [ -d "$DEPLOY_PATH/backend" ]; then
+              echo "Restoring backend .env file..."
+              mv "$DEPLOY_PATH/.env.backup_$TIMESTAMP" "$DEPLOY_PATH/backend/.env"
+              echo "✓ Backend .env file restored"
+            else
+              echo "✗ Backend directory not found, cannot restore .env file"
+              exit 1
+            fi
+          fi
           
           # Set proper permissions only on deployed directories
           echo "Setting permissions..."
