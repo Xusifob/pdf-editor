@@ -8,12 +8,107 @@ import io
 import json
 import base64
 import os
+from pathlib import Path
+import uuid
+import logging
+from logging.handlers import RotatingFileHandler
+import sys
+
+# Import database functions
+from database import (
+    init_connection_pool,
+    run_migrations,
+    db_save_pdf,
+    db_get_pdf,
+    db_list_pdfs,
+    db_update_field,
+    db_delete_field,
+    db_bulk_delete_fields,
+    db_bulk_update_fields,
+    db_delete_pdf
+)
+
+# ===================================================================================
+# LOGGING CONFIGURATION
+# ===================================================================================
+
+# Create logs directory if it doesn't exist
+LOG_DIR = Path("/var/www/html/2026/pdf-editor/backend/logs")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Configure logging format
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# Create formatters
+formatter = logging.Formatter(LOG_FORMAT, DATE_FORMAT)
+
+# Setup main application logger
+logger = logging.getLogger("pdf_editor")
+logger.setLevel(logging.INFO)
+
+# Console handler for development
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+# Rotating file handler for general application logs
+# Max size: 10MB, Keep 5 backup files
+app_log_file = LOG_DIR / "app.log"
+app_file_handler = RotatingFileHandler(
+    app_log_file,
+    maxBytes=10 * 1024 * 1024,  # 10 MB
+    backupCount=5,
+    encoding='utf-8'
+)
+app_file_handler.setLevel(logging.INFO)
+app_file_handler.setFormatter(formatter)
+logger.addHandler(app_file_handler)
+
+# Rotating file handler for error logs
+# Max size: 10MB, Keep 10 backup files
+error_log_file = LOG_DIR / "error.log"
+error_file_handler = RotatingFileHandler(
+    error_log_file,
+    maxBytes=10 * 1024 * 1024,  # 10 MB
+    backupCount=10,
+    encoding='utf-8'
+)
+error_file_handler.setLevel(logging.ERROR)
+error_file_handler.setFormatter(formatter)
+logger.addHandler(error_file_handler)
+
+# Rotating file handler for PDF processing logs
+# Max size: 20MB, Keep 5 backup files
+pdf_log_file = LOG_DIR / "pdf_processing.log"
+pdf_file_handler = RotatingFileHandler(
+    pdf_log_file,
+    maxBytes=20 * 1024 * 1024,  # 20 MB
+    backupCount=5,
+    encoding='utf-8'
+)
+pdf_file_handler.setLevel(logging.DEBUG)
+pdf_file_handler.setFormatter(formatter)
+
+# Create a separate logger for PDF processing
+pdf_logger = logging.getLogger("pdf_editor.pdf_processing")
+pdf_logger.setLevel(logging.DEBUG)
+pdf_logger.addHandler(pdf_file_handler)
+pdf_logger.addHandler(console_handler)
+
+logger.info("=" * 80)
+logger.info("PDF Editor API - Logging initialized")
+logger.info(f"Log directory: {LOG_DIR}")
+logger.info("=" * 80)
 
 app = FastAPI(title="PDF Editor API", version="1.0.0")
 
 # Configure CORS
 # Allow multiple origins for development and production
 allowed_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3003").split(",")]
+
+logger.info(f"Configuring CORS with allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,8 +118,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage for PDF information (replace with database in production)
-pdf_storage: Dict[str, Dict[str, Any]] = {}
+
+# ===================================================================================
+# APPLICATION STARTUP - Initialize Database
+# ===================================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database connection and run migrations on startup"""
+    try:
+        logger.info("Starting PDF Editor API...")
+        init_connection_pool()
+        logger.info("Database connection pool initialized")
+        run_migrations()
+        logger.info("Database migrations completed")
+        logger.info("Application started successfully")
+    except Exception as e:
+        logger.error(f"Fatal error during startup: {e}", exc_info=True)
+        # Don't raise - allow app to start even if DB is down (for health checks)
+
+
+# ===================================================================================
+# PYDANTIC MODELS
+# ===================================================================================
 
 
 class FieldInfo(BaseModel):
@@ -62,9 +178,23 @@ class UpdateFieldRequest(BaseModel):
     field: FieldInfo
 
 
+class BulkDeleteRequest(BaseModel):
+    field_ids: List[str]
+
+
+class BulkUpdateRequest(BaseModel):
+    field_ids: List[str]
+    updates: Dict[str, Any]
+
+
+# ===================================================================================
+# API ENDPOINTS
+# ===================================================================================
+
 @app.get("/")
 async def root():
     """Root endpoint"""
+    logger.info("Root endpoint accessed")
     return {
         "message": "PDF Editor API",
         "version": "1.0.0",
@@ -131,17 +261,27 @@ async def upload_pdf(file: UploadFile = File(...)):
     """
     Upload a PDF file and extract its fields
     """
+    logger.info(f"Upload request received - Filename: {file.filename}, Content-Type: {file.content_type}")
+
     if not file.filename.endswith('.pdf'):
+        logger.warning(f"Invalid file type rejected: {file.filename}")
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
     try:
         # Read the PDF file
+        pdf_logger.info(f"Reading PDF file: {file.filename}")
         contents = await file.read()
+        file_size = len(contents)
+        pdf_logger.info(f"PDF size: {file_size / 1024:.2f} KB")
+
         pdf_reader = pypdf.PdfReader(io.BytesIO(contents))
-        
-        # Generate a simple ID (in production, use UUID or similar)
-        pdf_id = f"pdf_{len(pdf_storage) + 1}"
-        
+        num_pages = len(pdf_reader.pages)
+        pdf_logger.info(f"PDF has {num_pages} page(s)")
+
+        # Generate a unique ID using UUID
+        pdf_id = str(uuid.uuid4())
+        logger.info(f"Generated PDF ID: {pdf_id}")
+
         # Extract fields from the PDF
         fields = []
         
@@ -340,33 +480,31 @@ async def upload_pdf(file: UploadFile = File(...)):
                 )
                 fields.append(field_info)
         except Exception as e:
-            print(f"Error extracting fields: {e}")
-            import traceback
-            traceback.print_exc()
+            pdf_logger.error(f"Error extracting fields from PDF: {e}", exc_info=True)
             # Continue without fields if extraction fails
 
-        # Store PDF information
-        pdf_info = {
-            "pdf_id": pdf_id,
-            "filename": file.filename,
-            "num_pages": len(pdf_reader.pages),
-            "fields": [field.dict() for field in fields],
-            "raw_data": contents  # Store raw data for later processing
-        }
-        
-        pdf_storage[pdf_id] = pdf_info
-        
+        pdf_logger.info(f"Extracted {len(fields)} field(s) from PDF")
+
+        # Save to database
+        fields_dict = [field.dict() for field in fields]
+        logger.info(f"Saving PDF to database: {pdf_id}")
+        success = db_save_pdf(pdf_id, file.filename, len(pdf_reader.pages), contents, fields_dict)
+
+        if not success:
+            logger.error(f"Failed to save PDF to database: {pdf_id}")
+            raise HTTPException(status_code=500, detail="Failed to save PDF to database")
+
+        logger.info(f"PDF saved successfully: {pdf_id} ({file.filename}, {len(fields)} fields)")
         return {
             "pdf_id": pdf_id,
             "filename": file.filename,
             "num_pages": len(pdf_reader.pages),
-            "fields": [field.dict() for field in fields],
+            "fields": fields_dict,
             "message": f"PDF uploaded successfully. Found {len(fields)} fields."
         }
     
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error processing PDF: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 
@@ -375,17 +513,10 @@ async def list_pdfs():
     """
     List all uploaded PDFs
     """
-    return {
-        "pdfs": [
-            {
-                "pdf_id": pdf_info["pdf_id"],
-                "filename": pdf_info["filename"],
-                "num_pages": pdf_info["num_pages"],
-                "num_fields": len(pdf_info["fields"])
-            }
-            for pdf_info in pdf_storage.values()
-        ]
-    }
+    logger.info("Listing all PDFs")
+    pdfs = db_list_pdfs()
+    logger.info(f"Found {len(pdfs)} PDF(s)")
+    return {"pdfs": pdfs}
 
 
 @app.get("/api/pdf/{pdf_id}")
@@ -393,10 +524,14 @@ async def get_pdf_info(pdf_id: str):
     """
     Get information about a specific PDF
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Fetching PDF info: {pdf_id}")
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
     
-    pdf_info = pdf_storage[pdf_id]
+    logger.info(f"PDF info retrieved: {pdf_id} ({pdf_info['filename']}, {len(pdf_info['fields'])} fields)")
+    # Remove raw_data from response (too large)
     return {
         "pdf_id": pdf_info["pdf_id"],
         "filename": pdf_info["filename"],
@@ -410,27 +545,24 @@ async def update_field(pdf_id: str, request: UpdateFieldRequest):
     """
     Update or add a field to a PDF
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Updating field in PDF: {pdf_id}")
+    # Check if PDF exists
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found for field update: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
     
-    pdf_info = pdf_storage[pdf_id]
     field = request.field
-    
-    # Get the field identifier (prefer id over name)
-    field_id = field.id or field.name
+    field_dict = field.dict()
+    logger.debug(f"Field data: {field.name} (type: {field.field_type})")
 
-    # Find and update existing field or add new one
-    field_found = False
-    for i, existing_field in enumerate(pdf_info["fields"]):
-        existing_id = existing_field.get("id") or existing_field.get("name")
-        if existing_id == field_id:
-            pdf_info["fields"][i] = field.dict()
-            field_found = True
-            break
-    
-    if not field_found:
-        pdf_info["fields"].append(field.dict())
-    
+    # Update or insert field in database
+    success = db_update_field(pdf_id, field_dict)
+    if not success:
+        logger.error(f"Failed to update field: {field.name} in PDF {pdf_id}")
+        raise HTTPException(status_code=500, detail="Failed to update field")
+
+    logger.info(f"Field updated successfully: {field.name}")
     return {
         "message": "Field updated successfully",
         "field": field
@@ -442,22 +574,20 @@ async def delete_field(pdf_id: str, field_name: str):
     """
     Delete a field from a PDF
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Deleting field: {field_name} from PDF: {pdf_id}")
+    # Check if PDF exists
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found for field deletion: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
     
-    pdf_info = pdf_storage[pdf_id]
-    pdf_info["fields"] = [f for f in pdf_info["fields"] if f["name"] != field_name]
-    
+    success = db_delete_field(pdf_id, field_name)
+    if not success:
+        logger.error(f"Failed to delete field: {field_name} from PDF {pdf_id}")
+        raise HTTPException(status_code=500, detail="Failed to delete field")
+
+    logger.info(f"Field deleted successfully: {field_name}")
     return {"message": f"Field {field_name} deleted successfully"}
-
-
-class BulkDeleteRequest(BaseModel):
-    field_ids: List[str]
-
-
-class BulkUpdateRequest(BaseModel):
-    field_ids: List[str]
-    updates: Dict[str, Any]  # Properties to update
 
 
 @app.post("/api/pdf/{pdf_id}/fields/bulk-delete")
@@ -465,18 +595,20 @@ async def bulk_delete_fields(pdf_id: str, request: BulkDeleteRequest):
     """
     Delete multiple fields from a PDF
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Bulk deleting {len(request.field_ids)} fields from PDF: {pdf_id}")
+    # Check if PDF exists
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found for bulk delete: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
 
-    pdf_info = pdf_storage[pdf_id]
-    field_ids = set(request.field_ids)
+    success = db_bulk_delete_fields(pdf_id, request.field_ids)
+    if not success:
+        logger.error(f"Failed to bulk delete fields from PDF {pdf_id}")
+        raise HTTPException(status_code=500, detail="Failed to delete fields")
 
-    pdf_info["fields"] = [
-        f for f in pdf_info["fields"]
-        if (f.get("id") or f.get("name")) not in field_ids
-    ]
-
-    return {"message": f"Deleted {len(field_ids)} fields successfully"}
+    logger.info(f"Bulk deleted {len(request.field_ids)} fields successfully")
+    return {"message": f"Deleted {len(request.field_ids)} fields successfully"}
 
 
 @app.post("/api/pdf/{pdf_id}/fields/bulk-update")
@@ -484,22 +616,20 @@ async def bulk_update_fields(pdf_id: str, request: BulkUpdateRequest):
     """
     Update multiple fields with common properties
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Bulk updating {len(request.field_ids)} fields in PDF: {pdf_id}")
+    logger.debug(f"Update properties: {request.updates}")
+    # Check if PDF exists
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found for bulk update: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
 
-    pdf_info = pdf_storage[pdf_id]
-    field_ids = set(request.field_ids)
-    updates = request.updates
+    updated_count = db_bulk_update_fields(pdf_id, request.field_ids, request.updates)
+    if updated_count == 0:
+        logger.error(f"Failed to bulk update fields in PDF {pdf_id}")
+        raise HTTPException(status_code=500, detail="Failed to update fields")
 
-    updated_count = 0
-    for i, field in enumerate(pdf_info["fields"]):
-        field_id = field.get("id") or field.get("name")
-        if field_id in field_ids:
-            for key, value in updates.items():
-                if value is not None:
-                    pdf_info["fields"][i][key] = value
-            updated_count += 1
-
+    logger.info(f"Bulk updated {updated_count} fields successfully")
     return {"message": f"Updated {updated_count} fields successfully"}
 
 
@@ -508,18 +638,22 @@ async def get_pdf_content(pdf_id: str):
     """
     Get the raw PDF content as base64
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Getting PDF content: {pdf_id}")
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
     
-    pdf_info = pdf_storage[pdf_id]
     pdf_bytes = pdf_info.get("raw_data")
     
     if not pdf_bytes:
+        logger.error(f"PDF content not found: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF content not found")
     
     # Return base64 encoded PDF
     pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
-    
+    logger.info(f"PDF content retrieved: {pdf_id} ({len(pdf_bytes) / 1024:.2f} KB)")
+
     return {
         "pdf_id": pdf_id,
         "content": pdf_base64,
@@ -532,16 +666,20 @@ async def download_pdf(pdf_id: str):
     """
     Download the PDF with fillable form fields
     """
-    if pdf_id not in pdf_storage:
+    logger.info(f"Download request for PDF: {pdf_id}")
+    pdf_info = db_get_pdf(pdf_id)
+    if not pdf_info:
+        logger.warning(f"PDF not found for download: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF not found")
 
-    pdf_info = pdf_storage[pdf_id]
     pdf_bytes = pdf_info.get("raw_data")
 
     if not pdf_bytes:
+        logger.error(f"PDF content not found for download: {pdf_id}")
         raise HTTPException(status_code=404, detail="PDF content not found")
 
     try:
+        pdf_logger.info(f"Starting PDF generation for download: {pdf_id}")
         from pypdf.generic import (
             DictionaryObject,
             ArrayObject,
@@ -552,6 +690,7 @@ async def download_pdf(pdf_id: str):
         )
 
         # Read the original PDF
+        pdf_logger.debug(f"Reading original PDF: {pdf_id}")
         pdf_reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
         pdf_writer = pypdf.PdfWriter()
 
@@ -804,6 +943,9 @@ async def download_pdf(pdf_id: str):
         else:
             filename = filename + "_edited.pdf"
 
+        pdf_logger.info(f"PDF generated successfully: {pdf_id} ({len(pdf_data) / 1024:.2f} KB)")
+        logger.info(f"Sending download: {filename}")
+
         return Response(
             content=pdf_data,
             media_type="application/pdf",
@@ -814,8 +956,7 @@ async def download_pdf(pdf_id: str):
         )
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error generating PDF for download: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating PDF: {str(e)}")
 
 

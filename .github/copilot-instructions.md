@@ -64,6 +64,7 @@ This is a PDF editor web application that allows users to upload PDF files, extr
 3. Frontend: Create/update React components
 4. Test UI functionality
 5. Update README if necessary
+6. Do not ever create a Md file to explain the code. Always add comments in the code itself and update the Readme if necessary.
 
 ### Testing
 - Test backend endpoints using FastAPI automatic docs

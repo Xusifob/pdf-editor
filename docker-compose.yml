@@ -1,4 +1,24 @@
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: pdf-editor-mysql
+    ports:
+      - "3312:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=pdf_editor
+      - MYSQL_USER=pdf_editor
+      - MYSQL_PASSWORD=pdf_editor_password
+    networks:
+      - pdf-editor-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -11,8 +31,17 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - CORS_ORIGINS=http://localhost:3000,http://localhost:3003,http://localhost:3001
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=pdf_editor
+      - DB_PASSWORD=pdf_editor_password
+      - DB_NAME=pdf_editor
+      - DB_POOL_SIZE=5
     networks:
       - pdf-editor-network
+    depends_on:
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -37,3 +66,8 @@ services:
 networks:
   pdf-editor-network:
     driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+
