@@ -115,7 +115,7 @@ jobs:
           echo "Deploying frontend..."
           if [ -d "/var/www/pdf.malahieude.net/frontend" ]; then
             rm -rf /var/www/pdf.malahieude.net/frontend/*
-            cp -r "$DEPLOY_PATH/frontend/build/"* /var/www/pdf.malahieude.net/frontend/
+            cp -r "$DEPLOY_PATH/frontend/"* /var/www/pdf.malahieude.net/frontend/
           else
             echo "Warning: /var/www/pdf.malahieude.net/frontend not accessible"
             echo "Verify that the deployment user has write permissions to this directory"

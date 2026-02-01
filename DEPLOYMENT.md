@@ -417,7 +417,7 @@ mv frontend_backup_YYYYMMDD_HHMMSS frontend
 
 # Restore frontend (if you have write access)
 rm -rf /var/www/pdf.malahieude.net/frontend/*
-cp -r /home/pdfmerger/pdf-editor/frontend/build/* /var/www/pdf.malahieude.net/frontend/
+cp -r /home/pdfmerger/pdf-editor/frontend/* /var/www/pdf.malahieude.net/frontend/
 
 # Restart service
 systemctl --user start pdfmerger
