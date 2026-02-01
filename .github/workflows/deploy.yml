@@ -11,6 +11,7 @@ env:
   SSH_USER: ${{ vars.SSH_USER }}
   DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/home/pdfmerger/pdf-editor' }}
   PYTHON_VERSION: ${{ vars.PYTHON_VERSION || '3.9' }}
+  REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL || 'https://pdf-api.malahieude.net' }}
 
 jobs:
   build-and-deploy:
