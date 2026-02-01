@@ -4,7 +4,22 @@ This guide explains how to set up and deploy the PDF Editor application to a pro
 
 ## Quick Start: Backend Service Setup
 
-If you've just deployed and see a message about the backend service not being configured, here's a quick setup:
+If you've just deployed and see a message about the backend service not being configured, you have two options:
+
+### Option 1: Automated Setup (Recommended)
+
+Use the provided setup script:
+
+```bash
+# As the deployment user (e.g., pdfmerger)
+cd /home/pdfmerger/pdf-editor
+./scripts/setup-service.sh
+
+# Then enable linger (requires sudo)
+sudo loginctl enable-linger $USER
+```
+
+### Option 2: Manual Setup
 
 ```bash
 # As the deployment user (e.g., pdfmerger)
