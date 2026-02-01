@@ -13,6 +13,10 @@ import uuid
 import logging
 from logging.handlers import RotatingFileHandler
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if it exists
+load_dotenv()
 
 # Import database functions
 from database import (
