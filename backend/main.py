@@ -16,7 +16,8 @@ import sys
 from dotenv import load_dotenv
 
 # Load environment variables from .env file if it exists
-load_dotenv()
+# override=False ensures existing environment variables take precedence
+load_dotenv(override=False)
 
 # Import database functions
 from database import (
