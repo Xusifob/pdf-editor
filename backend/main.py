@@ -899,6 +899,43 @@ async def download_pdf(pdf_id: str):
                         text_props[NameObject("/MaxLen")] = NumberObject(int(max_length))
                     field_dict.update(text_props)
 
+                    # Add date formatting for Date fields
+                    if field_type == "Date":
+                        # Get the date format from field data, default to DD/MM/YYYY
+                        date_format = field.get("date_format", "DD/MM/YYYY")
+                        
+                        # Map common date formats to PDF JavaScript date format codes
+                        format_map = {
+                            "DD/MM/YYYY": "dd/mm/yyyy",
+                            "MM/DD/YYYY": "mm/dd/yyyy",
+                            "YYYY-MM-DD": "yyyy-mm-dd",
+                            "DD-MM-YYYY": "dd-mm-yyyy",
+                            "MM-DD-YYYY": "mm-dd-yyyy",
+                        }
+                        pdf_date_format = format_map.get(date_format, "dd/mm/yyyy")
+                        
+                        # Create JavaScript format action for date field
+                        # The AFDate_FormatEx function requires the date format as parameter
+                        format_script = f"AFDate_FormatEx(\"{pdf_date_format}\");"
+                        keystroke_script = f"AFDate_KeystrokeEx(\"{pdf_date_format}\");"
+                        
+                        # Create action dictionaries for format and keystroke
+                        format_action = DictionaryObject({
+                            NameObject("/S"): NameObject("/JavaScript"),
+                            NameObject("/JS"): TextStringObject(format_script),
+                        })
+                        
+                        keystroke_action = DictionaryObject({
+                            NameObject("/S"): NameObject("/JavaScript"),
+                            NameObject("/JS"): TextStringObject(keystroke_script),
+                        })
+                        
+                        # Add Additional Actions to the field
+                        field_dict[NameObject("/AA")] = DictionaryObject({
+                            NameObject("/F"): format_action,  # Format action
+                            NameObject("/K"): keystroke_action,  # Keystroke action
+                        })
+
                 # Add field as indirect object and add to page annotations
                 field_ref = pdf_writer._add_object(field_dict)
                 page["/Annots"].append(field_ref)
