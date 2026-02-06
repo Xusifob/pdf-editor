@@ -324,7 +324,11 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
                     min="6"
                     max="72"
                     value={editingField.font_size || 12}
-                    onChange={(e) => setEditingField({...editingField, font_size: parseFloat(e.target.value) || 12})}
+                    onChange={(e) => {
+                      const size = parseFloat(e.target.value) || 12;
+                      const clampedSize = Math.min(72, Math.max(6, size));
+                      setEditingField({...editingField, font_size: clampedSize});
+                    }}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                   />
                 </div>

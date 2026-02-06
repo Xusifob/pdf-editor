@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Dict, Any, Optional
 import pypdf
 import io
@@ -168,8 +168,23 @@ class FieldInfo(BaseModel):
     border_width: Optional[float] = 1
     border_color: Optional[List[float]] = [0, 0, 0]  # RGB values 0-1
     max_length: Optional[int] = None  # Maximum number of characters (None = unlimited)
-    font_name: Optional[str] = "Helvetica"  # Font name: Helvetica, Times, Courier
-    font_size: Optional[float] = 12  # Font size in points
+    font_name: Optional[str] = "Helvetica"  # Font name: Helvetica, Times, or Courier
+    font_size: Optional[float] = 12  # Font size in points (6-72)
+    
+    @validator('font_name')
+    def validate_font_name(cls, v):
+        """Validate that font_name is one of the supported fonts"""
+        if v is not None and v not in ['Helvetica', 'Times', 'Courier']:
+            raise ValueError('font_name must be one of: Helvetica, Times, Courier')
+        return v
+    
+    @validator('font_size')
+    def validate_font_size(cls, v):
+        """Validate that font_size is within acceptable range"""
+        if v is not None:
+            if v < 6 or v > 72:
+                raise ValueError('font_size must be between 6 and 72 points')
+        return v
 
 
 class PDFInfo(BaseModel):
