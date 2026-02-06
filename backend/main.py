@@ -734,6 +734,16 @@ async def download_pdf(pdf_id: str):
         acro_form = DictionaryObject()
         field_refs = ArrayObject()
 
+        # Create the Helvetica font as an indirect object
+        # This is required for compatibility with third-party PDF libraries like SetaPDF
+        helvetica_font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+            NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),  # Standard encoding for compatibility
+        })
+        helvetica_font_ref = pdf_writer._add_object(helvetica_font)
+
         # Process each page and add form fields
         for page_num in range(len(pdf_writer.pages)):
             if page_num not in fields_by_page:
@@ -892,20 +902,25 @@ async def download_pdf(pdf_id: str):
                 page["/Annots"].append(field_ref)
                 field_refs.append(field_ref)
 
+        # Create the Font dictionary as an indirect object
+        # Reference the Helvetica font we created earlier
+        font_dict = DictionaryObject({
+            NameObject("/Helv"): helvetica_font_ref
+        })
+        font_dict_ref = pdf_writer._add_object(font_dict)
+
+        # Create the DR (Default Resources) dictionary with proper indirect references
+        dr_dict = DictionaryObject({
+            NameObject("/Font"): font_dict_ref
+        })
+        dr_dict_ref = pdf_writer._add_object(dr_dict)
+
         # Set up AcroForm in the document catalog
         acro_form.update({
             NameObject("/Fields"): field_refs,
             NameObject("/NeedAppearances"): BooleanObject(True),
             NameObject("/DA"): TextStringObject("/Helv 12 Tf 0 g"),
-            NameObject("/DR"): DictionaryObject({
-                NameObject("/Font"): DictionaryObject({
-                    NameObject("/Helv"): DictionaryObject({
-                        NameObject("/Type"): NameObject("/Font"),
-                        NameObject("/Subtype"): NameObject("/Type1"),
-                        NameObject("/BaseFont"): NameObject("/Helvetica"),
-                    })
-                })
-            })
+            NameObject("/DR"): dr_dict_ref  # Use indirect reference instead of direct dictionary
         })
 
         # Add AcroForm to the root object
