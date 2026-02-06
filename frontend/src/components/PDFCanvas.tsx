@@ -10,6 +10,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const MIN_FIELD_HEIGHT = 5;
+const MAX_ZOOM = 3;
 
 interface PDFCanvasProps {
   pdfId: string;
@@ -195,7 +197,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
       const deltaX = (e.clientX - resizingField.startX) / scale;
       const deltaY = (e.clientY - resizingField.startY) / scale;
       const newWidth = Math.max(50, resizingField.startWidth + deltaX);
-      const newHeight = Math.max(5, resizingField.startHeight + deltaY);
+      const newHeight = Math.max(MIN_FIELD_HEIGHT, resizingField.startHeight + deltaY);
       onFieldsUpdate(fields.map(f => getFieldId(f) === getFieldId(resizingField.field) ? { ...f, width: newWidth, height: newHeight } : f));
     }
   };
@@ -311,7 +313,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
         <div className="toolbar-group">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))}>-</button>
           <span>{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(3, s + 0.1))}>+</button>
+          <button onClick={() => setScale(s => Math.min(MAX_ZOOM, s + 0.1))}>+</button>
         </div>
         <div className="toolbar-group">
           <button onClick={() => setShowFieldMenu(!showFieldMenu)}>{showFieldMenu ? t('pdfCanvas.toolbar.hidePanel') : t('pdfCanvas.toolbar.showPanel')}</button>
@@ -463,7 +465,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                         type="number"
                         className="field-number-input"
                         value={Math.round(selectedFieldData.height)}
-                        min="5"
+                        min={MIN_FIELD_HEIGHT}
                         onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'height', parseFloat(e.target.value) || 30)}
                       />
                     </div>
