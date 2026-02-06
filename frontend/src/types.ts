@@ -16,8 +16,6 @@ export interface PDFField {
   border_width?: number;
   border_color?: number[];
   background_color?: string;
-  font_family?: string;
-  font_size?: number;
   max_length?: number | null;
   original_name?: string;
   radio_group?: string;
