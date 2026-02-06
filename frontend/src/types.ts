@@ -19,6 +19,8 @@ export interface PDFField {
   max_length?: number | null;
   original_name?: string;
   radio_group?: string;
+  font_name?: string;
+  font_size?: number;
 }
 
 export interface PDFData {

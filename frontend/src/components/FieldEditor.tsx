@@ -301,6 +301,36 @@ function FieldEditor({ pdfId, fields, onFieldsUpdate }: FieldEditorProps) {
               />
             </div>
 
+            {/* Font selection for text fields */}
+            {(editingField.field_type === 'Text' || editingField.field_type === 'Textarea' || editingField.field_type === 'Date') && (
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.fontName')}:</label>
+                  <select
+                    value={editingField.font_name || 'Helvetica'}
+                    onChange={(e) => setEditingField({...editingField, font_name: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  >
+                    <option value="Helvetica">Helvetica</option>
+                    <option value="Times">Times Roman</option>
+                    <option value="Courier">Courier</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block mb-2 text-sm font-semibold text-gray-700">{t('fieldEditor.fontSize')}:</label>
+                  <input
+                    type="number"
+                    min="6"
+                    max="72"
+                    value={editingField.font_size || 12}
+                    onChange={(e) => setEditingField({...editingField, font_size: parseFloat(e.target.value) || 12})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-4 justify-end">
               <button 
                 className="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition-colors"
