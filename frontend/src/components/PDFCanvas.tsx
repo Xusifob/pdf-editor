@@ -10,6 +10,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const MIN_FIELD_HEIGHT = 5;
+const MAX_ZOOM = 3;
 
 interface PDFCanvasProps {
   pdfId: string;
@@ -89,13 +91,26 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
   }, [selectedFields, fields, pdfId, onFieldsUpdate]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Check if we're in an input field
+    const target = e.target as HTMLElement;
+    const isInInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+    
+    // Handle Ctrl+A to select all fields on the current page
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !isInInputField) {
+      e.preventDefault();
+      const currentPageFields = fields.filter(f => f.page === currentPage - 1);
+      const allFieldIds = currentPageFields.map(f => getFieldId(f));
+      setSelectedFields(allFieldIds);
+      return;
+    }
+    
+    // Handle Delete/Backspace to delete selected fields
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFields.length > 0) {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (isInInputField) return;
       e.preventDefault();
       handleDeleteSelectedFields();
     }
-  }, [selectedFields, handleDeleteSelectedFields]);
+  }, [selectedFields, handleDeleteSelectedFields, fields, currentPage]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -126,7 +141,8 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
       value: (fieldType === 'Checkbox' || fieldType === 'Radio') ? 'Yes' : '',
       checked: false, date_format: fieldType === 'Date' ? 'DD/MM/YYYY' : null,
       monospace: false, x: 50, y: 50, width, height, page: currentPage - 1,
-      border_style: 'solid', border_width: 1, border_color: [0, 0, 0],
+      border_style: 'none', border_width: 0, border_color: [0, 0, 0],
+      background_color: 'transparent',
       font_family: 'Helvetica', font_size: 12, max_length: null
     };
     onFieldsUpdate([...fields, newField]);
@@ -182,7 +198,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
       const deltaX = (e.clientX - resizingField.startX) / scale;
       const deltaY = (e.clientY - resizingField.startY) / scale;
       const newWidth = Math.max(50, resizingField.startWidth + deltaX);
-      const newHeight = Math.max(20, resizingField.startHeight + deltaY);
+      const newHeight = Math.max(MIN_FIELD_HEIGHT, resizingField.startHeight + deltaY);
       onFieldsUpdate(fields.map(f => getFieldId(f) === getFieldId(resizingField.field) ? { ...f, width: newWidth, height: newHeight } : f));
     }
   };
@@ -298,7 +314,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
         <div className="toolbar-group">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))}>-</button>
           <span>{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(2, s + 0.1))}>+</button>
+          <button onClick={() => setScale(s => Math.min(MAX_ZOOM, s + 0.1))}>+</button>
         </div>
         <div className="toolbar-group">
           <button onClick={() => setShowFieldMenu(!showFieldMenu)}>{showFieldMenu ? t('pdfCanvas.toolbar.hidePanel') : t('pdfCanvas.toolbar.showPanel')}</button>
@@ -321,6 +337,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                   const cssBorderStyle = borderStyleMap[field.border_style || 'solid'] || 'solid';
                   const borderWidth = field.border_style === 'none' ? 0 : (field.border_width || 1);
                   const borderColor = field.border_color ? `rgb(${Math.round(field.border_color[0] * 255)}, ${Math.round(field.border_color[1] * 255)}, ${Math.round(field.border_color[2] * 255)})` : '#667eea';
+                  const backgroundColor = field.background_color || 'transparent';
                   const isSignature = field.field_type === 'Signature';
                   const isCheckbox = field.field_type === 'Checkbox';
                   const isRadio = field.field_type === 'Radio';
@@ -328,7 +345,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
 
                   return (
                     <div key={getFieldId(field)} className={`field-box ${isSelected ? 'selected' : ''} ${field.border_style === 'underline' ? 'underline-border' : ''} ${isSignature ? 'signature-field' : ''} ${isCheckbox || isRadio ? 'checkbox-field' : ''}`}
-                      style={{ left: `${field.x * scale}px`, top: `${field.y * scale}px`, width: `${field.width * scale}px`, height: `${field.height * scale}px`, borderStyle: cssBorderStyle as any, borderWidth: `${borderWidth}px`, borderColor: borderColor, borderBottomStyle: (field.border_style === 'underline' ? 'solid' : cssBorderStyle) as any, borderBottomWidth: field.border_style === 'underline' ? `${field.border_width || 1}px` : `${borderWidth}px` }}
+                      style={{ left: `${field.x * scale}px`, top: `${field.y * scale}px`, width: `${field.width * scale}px`, height: `${field.height * scale}px`, borderStyle: cssBorderStyle as any, borderWidth: `${borderWidth}px`, borderColor: borderColor, backgroundColor: backgroundColor, borderBottomStyle: (field.border_style === 'underline' ? 'solid' : cssBorderStyle) as any, borderBottomWidth: field.border_style === 'underline' ? `${field.border_width || 1}px` : `${borderWidth}px` }}
                       onClick={(e) => handleFieldClick(e, field)} onMouseDown={(e) => handleMouseDown(e, field, 'drag')}>
                       <div className="field-label">{field.label || field.name}</div>
                       {isSelected && selectedFields.length === 1 && (
@@ -398,6 +415,11 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                     <option value="none">{t('pdfCanvas.borderStyles.none')}</option>
                   </select>
                 </div>
+                <div className="field-property">
+                  <label><strong>Background Color (All):</strong></label>
+                  <input type="color" className="field-color-input" onChange={(e) => handleBulkUpdate('background_color', e.target.value)} />
+                  <button className="btn-transparent" onClick={() => handleBulkUpdate('background_color', 'transparent')} style={{ marginLeft: '8px', padding: '4px 8px', fontSize: '12px' }}>Transparent</button>
+                </div>
               </div>
             )}
 
@@ -450,7 +472,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                         type="number"
                         className="field-number-input"
                         value={Math.round(selectedFieldData.height)}
-                        min="10"
+                        min={MIN_FIELD_HEIGHT}
                         onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'height', parseFloat(e.target.value) || 30)}
                       />
                     </div>
@@ -475,6 +497,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
 
                   <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.borderStyle')}:</strong></label><select className="field-select" value={selectedFieldData.border_style || 'solid'} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'border_style', e.target.value)}><option value="solid">{t('pdfCanvas.borderStyles.solid')}</option><option value="dashed">{t('pdfCanvas.borderStyles.dashed')}</option><option value="beveled">{t('pdfCanvas.borderStyles.beveled')}</option><option value="inset">{t('pdfCanvas.borderStyles.inset')}</option><option value="underline">{t('pdfCanvas.borderStyles.underline')}</option><option value="none">{t('pdfCanvas.borderStyles.none')}</option></select></div>
                   <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.borderWidth')}:</strong></label><input type="number" className="field-number-input" value={selectedFieldData.border_width || 1} min="0" max="10" onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'border_width', parseFloat(e.target.value) || 0)} /></div>
+                  <div className="field-property"><label><strong>Background Color:</strong></label><input type="color" className="field-color-input" value={selectedFieldData.background_color === 'transparent' ? '#ffffff' : (selectedFieldData.background_color || '#ffffff')} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'background_color', e.target.value)} /><button className="btn-transparent" onClick={() => handlePropertyChange(getFieldId(selectedFieldData), 'background_color', 'transparent')} style={{ marginLeft: '8px', padding: '4px 8px', fontSize: '12px' }}>Transparent</button></div>
                   <button className="btn-delete-field" onClick={() => handleDeleteField(getFieldId(selectedFieldData))}>{t('pdfCanvas.fieldMenu.deleteField')}</button>
                 </div>
               </div>
