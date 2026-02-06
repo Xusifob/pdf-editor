@@ -142,8 +142,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
       checked: false, date_format: fieldType === 'Date' ? 'DD/MM/YYYY' : null,
       monospace: false, x: 50, y: 50, width, height, page: currentPage - 1,
       border_style: 'none', border_width: 0, border_color: [0, 0, 0],
-      background_color: 'transparent',
-      font_family: 'Helvetica', font_size: 12, max_length: null
+      background_color: 'transparent', max_length: null
     };
     onFieldsUpdate([...fields, newField]);
     setSelectedFields([newField.id!]);
@@ -489,8 +488,6 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                   {selectedFieldData.field_type === 'Date' && (<div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.dateFormat')}:</strong></label><select className="field-select" value={selectedFieldData.date_format || 'DD/MM/YYYY'} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'date_format', e.target.value)}><option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option><option value="DD-MM-YYYY">DD-MM-YYYY</option><option value="DD.MM.YYYY">DD.MM.YYYY</option><option value="YYYY/MM/DD">YYYY/MM/DD</option></select></div>)}
 
                   {(selectedFieldData.field_type === 'Text' || selectedFieldData.field_type === 'Textarea' || selectedFieldData.field_type === 'Date') && (<>
-                    <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.fontFamily')}:</strong></label><select className="field-select" value={selectedFieldData.font_family || 'Helvetica'} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'font_family', e.target.value)}><option value="Helvetica">{t('pdfCanvas.fonts.helvetica')}</option><option value="Times-Roman">{t('pdfCanvas.fonts.timesRoman')}</option><option value="Courier">{t('pdfCanvas.fonts.courier')}</option></select></div>
-                    <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.fontSize')}:</strong></label><input type="number" className="field-number-input" value={selectedFieldData.font_size || 12} min="6" max="72" onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'font_size', parseInt(e.target.value) || 12)} /></div>
                     <div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.maxCharacters')}:</strong></label><input type="number" className="field-number-input" value={selectedFieldData.max_length || ''} min="1" placeholder={t('pdfCanvas.fieldMenu.unlimited')} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'max_length', e.target.value ? parseInt(e.target.value) : null)} /></div>
                     {(selectedFieldData.field_type === 'Text' || selectedFieldData.field_type === 'Date') && (<div className="field-property"><label><strong>{t('pdfCanvas.fieldMenu.monospace')}:</strong></label><input type="checkbox" className="field-checkbox-input" checked={selectedFieldData.monospace || false} onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'monospace', e.target.checked)} /><span className="field-hint">{t('pdfCanvas.fieldMenu.requiresMaxChars')}</span></div>)}
                   </>)}

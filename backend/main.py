@@ -167,8 +167,6 @@ class FieldInfo(BaseModel):
     border_style: Optional[str] = "solid"  # solid, dashed, beveled, inset, underline, none
     border_width: Optional[float] = 1
     border_color: Optional[List[float]] = [0, 0, 0]  # RGB values 0-1
-    font_family: Optional[str] = "Helvetica"  # Helvetica, Times-Roman, Courier
-    font_size: Optional[int] = 12
     max_length: Optional[int] = None  # Maximum number of characters (None = unlimited)
 
 
@@ -760,8 +758,6 @@ async def download_pdf(pdf_id: str):
                 border_style = field.get("border_style", "solid")
                 border_width = float(field.get("border_width", 1))
                 border_color = field.get("border_color", [0, 0, 0])  # RGB values 0-1
-                font_family = field.get("font_family", "Helvetica")
-                font_size = field.get("font_size", 12)
                 max_length = field.get("max_length", None)
 
                 # Convert from top-left origin (HTML) to bottom-left origin (PDF)
@@ -782,16 +778,8 @@ async def download_pdf(pdf_id: str):
                 if border_style == "none":
                     border_width = 0
 
-                # Map font family to PDF font name
-                font_map = {
-                    "Helvetica": "/Helv",
-                    "Times-Roman": "/TiRo",
-                    "Courier": "/Cour"
-                }
-                pdf_font = font_map.get(font_family, "/Helv")
-
-                # Default appearance string with font
-                da_string = f"{pdf_font} {font_size} Tf 0 g"
+                # Default appearance string - use standard Helvetica 12pt
+                da_string = "/Helv 12 Tf 0 g"
 
                 # Create the field widget annotation
                 field_dict = DictionaryObject()
@@ -915,16 +903,6 @@ async def download_pdf(pdf_id: str):
                         NameObject("/Type"): NameObject("/Font"),
                         NameObject("/Subtype"): NameObject("/Type1"),
                         NameObject("/BaseFont"): NameObject("/Helvetica"),
-                    }),
-                    NameObject("/TiRo"): DictionaryObject({
-                        NameObject("/Type"): NameObject("/Font"),
-                        NameObject("/Subtype"): NameObject("/Type1"),
-                        NameObject("/BaseFont"): NameObject("/Times-Roman"),
-                    }),
-                    NameObject("/Cour"): DictionaryObject({
-                        NameObject("/Type"): NameObject("/Font"),
-                        NameObject("/Subtype"): NameObject("/Type1"),
-                        NameObject("/BaseFont"): NameObject("/Courier"),
                     })
                 })
             })
