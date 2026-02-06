@@ -10,6 +10,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const MIN_FIELD_WIDTH = 10;
 const MIN_FIELD_HEIGHT = 5;
 const MAX_ZOOM = 3;
 
@@ -196,7 +197,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
     } else if (resizingField) {
       const deltaX = (e.clientX - resizingField.startX) / scale;
       const deltaY = (e.clientY - resizingField.startY) / scale;
-      const newWidth = Math.max(50, resizingField.startWidth + deltaX);
+      const newWidth = Math.max(MIN_FIELD_WIDTH, resizingField.startWidth + deltaX);
       const newHeight = Math.max(MIN_FIELD_HEIGHT, resizingField.startHeight + deltaY);
       onFieldsUpdate(fields.map(f => getFieldId(f) === getFieldId(resizingField.field) ? { ...f, width: newWidth, height: newHeight } : f));
     }
@@ -461,7 +462,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                         type="number"
                         className="field-number-input"
                         value={Math.round(selectedFieldData.width)}
-                        min="10"
+                        min={MIN_FIELD_WIDTH}
                         onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'width', parseFloat(e.target.value) || 100)}
                       />
                     </div>
