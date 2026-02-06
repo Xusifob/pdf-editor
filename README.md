@@ -188,6 +188,15 @@ docker compose up --build
 5. **Reorder Fields**: Drag and drop fields to change their order
 6. **Delete Fields**: Remove unwanted fields with the "Delete" button
 
+## Third-Party Library Compatibility
+
+This application generates PDFs with proper font resource structures that are compatible with third-party PDF manipulation libraries like:
+
+- **SetaPDF (PHP)**: Can programmatically fill form fields
+- **Other PDF libraries**: Font resources are created as indirect objects following PDF specification best practices
+
+For details on the SetaPDF compatibility fix, see [SETAPDF_FIX.md](SETAPDF_FIX.md).
+
 ## Future Enhancements
 
 - [ ] PDF rendering/preview
