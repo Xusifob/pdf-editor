@@ -932,8 +932,8 @@ async def download_pdf(pdf_id: str):
                         
                         # Add Additional Actions to the field
                         field_dict[NameObject("/AA")] = DictionaryObject({
-                            NameObject("/F"): format_action,  # Format action
-                            NameObject("/K"): keystroke_action,  # Keystroke action
+                            NameObject("/Format"): format_action,  # Format action
+                            NameObject("/Keystroke"): keystroke_action,  # Keystroke action
                         })
 
                 # Add field as indirect object and add to page annotations
