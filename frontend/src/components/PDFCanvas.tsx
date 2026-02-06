@@ -89,13 +89,26 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
   }, [selectedFields, fields, pdfId, onFieldsUpdate]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Check if we're in an input field
+    const target = e.target as HTMLElement;
+    const isInInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+    
+    // Handle Ctrl+A to select all fields on the current page
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !isInInputField) {
+      e.preventDefault();
+      const currentPageFields = fields.filter(f => f.page === currentPage - 1);
+      const allFieldIds = currentPageFields.map(f => getFieldId(f));
+      setSelectedFields(allFieldIds);
+      return;
+    }
+    
+    // Handle Delete/Backspace to delete selected fields
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFields.length > 0) {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+      if (isInInputField) return;
       e.preventDefault();
       handleDeleteSelectedFields();
     }
-  }, [selectedFields, handleDeleteSelectedFields]);
+  }, [selectedFields, handleDeleteSelectedFields, fields, currentPage]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -126,7 +139,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
       value: (fieldType === 'Checkbox' || fieldType === 'Radio') ? 'Yes' : '',
       checked: false, date_format: fieldType === 'Date' ? 'DD/MM/YYYY' : null,
       monospace: false, x: 50, y: 50, width, height, page: currentPage - 1,
-      border_style: 'solid', border_width: 1, border_color: [0, 0, 0],
+      border_style: 'none', border_width: 0, border_color: [0, 0, 0],
       font_family: 'Helvetica', font_size: 12, max_length: null
     };
     onFieldsUpdate([...fields, newField]);
@@ -182,7 +195,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
       const deltaX = (e.clientX - resizingField.startX) / scale;
       const deltaY = (e.clientY - resizingField.startY) / scale;
       const newWidth = Math.max(50, resizingField.startWidth + deltaX);
-      const newHeight = Math.max(20, resizingField.startHeight + deltaY);
+      const newHeight = Math.max(5, resizingField.startHeight + deltaY);
       onFieldsUpdate(fields.map(f => getFieldId(f) === getFieldId(resizingField.field) ? { ...f, width: newWidth, height: newHeight } : f));
     }
   };
@@ -298,7 +311,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
         <div className="toolbar-group">
           <button onClick={() => setScale(s => Math.max(0.5, s - 0.1))}>-</button>
           <span>{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale(s => Math.min(2, s + 0.1))}>+</button>
+          <button onClick={() => setScale(s => Math.min(3, s + 0.1))}>+</button>
         </div>
         <div className="toolbar-group">
           <button onClick={() => setShowFieldMenu(!showFieldMenu)}>{showFieldMenu ? t('pdfCanvas.toolbar.hidePanel') : t('pdfCanvas.toolbar.showPanel')}</button>
@@ -450,7 +463,7 @@ function PDFCanvas({ pdfId, fields, onFieldsUpdate }: PDFCanvasProps) {
                         type="number"
                         className="field-number-input"
                         value={Math.round(selectedFieldData.height)}
-                        min="10"
+                        min="5"
                         onChange={(e) => handlePropertyChange(getFieldId(selectedFieldData), 'height', parseFloat(e.target.value) || 30)}
                       />
                     </div>
