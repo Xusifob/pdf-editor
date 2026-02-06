@@ -900,8 +900,12 @@ async def download_pdf(pdf_id: str):
                     field_dict.update(text_props)
 
                     # Add date formatting for Date fields
+                    # Note: Date fields in PDF are text fields (/Tx) with JavaScript format actions
+                    # They need both text properties (above) and Additional Actions (below)
                     if field_type == "Date":
                         # Get the date format from field data, default to DD/MM/YYYY
+                        # Expected input formats: "DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD-MM-YYYY", "MM-DD-YYYY"
+                        # These will be converted to PDF JavaScript format codes (e.g., "dd/mm/yyyy")
                         date_format = field.get("date_format", "DD/MM/YYYY")
                         
                         # Map common date formats to PDF JavaScript date format codes
