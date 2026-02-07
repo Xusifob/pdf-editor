@@ -49,7 +49,9 @@
     "errorAddFailed": "Failed to add field",
     "errorDeleteFailed": "Failed to delete field",
     "errorFieldName": "Please enter a field name",
-    "fieldsReordered": "Fields reordered!"
+    "fieldsReordered": "Fields reordered!",
+    "fontName": "Font",
+    "fontSize": "Font Size"
   },
   "pdfCanvas": {
     "toolbar": {

@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Dict, Any, Optional
 import pypdf
 import io
@@ -168,6 +168,23 @@ class FieldInfo(BaseModel):
     border_width: Optional[float] = 1
     border_color: Optional[List[float]] = [0, 0, 0]  # RGB values 0-1
     max_length: Optional[int] = None  # Maximum number of characters (None = unlimited)
+    font_name: Optional[str] = "Helvetica"  # Font name: Helvetica, Times, or Courier
+    font_size: Optional[float] = 12  # Font size in points (6-72)
+    
+    @validator('font_name')
+    def validate_font_name(cls, v):
+        """Validate that font_name is one of the supported fonts"""
+        if v is not None and v not in ['Helvetica', 'Times', 'Courier']:
+            raise ValueError('font_name must be one of: Helvetica, Times, Courier')
+        return v
+    
+    @validator('font_size')
+    def validate_font_size(cls, v):
+        """Validate that font_size is within acceptable range"""
+        if v is not None:
+            if v < 6 or v > 72:
+                raise ValueError('font_size must be between 6 and 72 points')
+        return v
 
 
 class PDFInfo(BaseModel):
@@ -734,6 +751,50 @@ async def download_pdf(pdf_id: str):
         acro_form = DictionaryObject()
         field_refs = ArrayObject()
 
+        # Create standard PDF fonts as indirect objects
+        # This is required for compatibility with third-party PDF libraries like SetaPDF
+        
+        # Helvetica font
+        helvetica_font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+            NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
+        })
+        helvetica_font_ref = pdf_writer._add_object(helvetica_font)
+        
+        # Times-Roman font
+        times_font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Times-Roman"),
+            NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
+        })
+        times_font_ref = pdf_writer._add_object(times_font)
+        
+        # Courier font
+        courier_font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Courier"),
+            NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
+        })
+        courier_font_ref = pdf_writer._add_object(courier_font)
+        
+        # Map font names to references
+        font_refs_map = {
+            "Helvetica": helvetica_font_ref,
+            "Times": times_font_ref,
+            "Courier": courier_font_ref,
+        }
+        
+        # Map font names to PDF resource names
+        font_name_map = {
+            "Helvetica": "/Helv",
+            "Times": "/Times",
+            "Courier": "/Cour",
+        }
+
         # Process each page and add form fields
         for page_num in range(len(pdf_writer.pages)):
             if page_num not in fields_by_page:
@@ -759,6 +820,8 @@ async def download_pdf(pdf_id: str):
                 border_width = float(field.get("border_width", 1))
                 border_color = field.get("border_color", [0, 0, 0])  # RGB values 0-1
                 max_length = field.get("max_length", None)
+                font_name = field.get("font_name", "Helvetica")  # Get font name from field
+                font_size = float(field.get("font_size", 12))  # Get font size from field
 
                 # Convert from top-left origin (HTML) to bottom-left origin (PDF)
                 pdf_y = page_height - y - height
@@ -778,8 +841,9 @@ async def download_pdf(pdf_id: str):
                 if border_style == "none":
                     border_width = 0
 
-                # Default appearance string - use standard Helvetica 12pt
-                da_string = "/Helv 12 Tf 0 g"
+                # Build default appearance string with selected font and size
+                pdf_font_name = font_name_map.get(font_name, "/Helv")
+                da_string = f"{pdf_font_name} {font_size} Tf 0 g"
 
                 # Create the field widget annotation
                 field_dict = DictionaryObject()
@@ -892,20 +956,26 @@ async def download_pdf(pdf_id: str):
                 page["/Annots"].append(field_ref)
                 field_refs.append(field_ref)
 
+        # Create the Font dictionary as an indirect object with all available fonts
+        font_dict = DictionaryObject({
+            NameObject("/Helv"): helvetica_font_ref,
+            NameObject("/Times"): times_font_ref,
+            NameObject("/Cour"): courier_font_ref,
+        })
+        font_dict_ref = pdf_writer._add_object(font_dict)
+
+        # Create the DR (Default Resources) dictionary with proper indirect references
+        dr_dict = DictionaryObject({
+            NameObject("/Font"): font_dict_ref
+        })
+        dr_dict_ref = pdf_writer._add_object(dr_dict)
+
         # Set up AcroForm in the document catalog
         acro_form.update({
             NameObject("/Fields"): field_refs,
             NameObject("/NeedAppearances"): BooleanObject(True),
-            NameObject("/DA"): TextStringObject("/Helv 12 Tf 0 g"),
-            NameObject("/DR"): DictionaryObject({
-                NameObject("/Font"): DictionaryObject({
-                    NameObject("/Helv"): DictionaryObject({
-                        NameObject("/Type"): NameObject("/Font"),
-                        NameObject("/Subtype"): NameObject("/Type1"),
-                        NameObject("/BaseFont"): NameObject("/Helvetica"),
-                    })
-                })
-            })
+            NameObject("/DA"): TextStringObject("/Helv 12 Tf 0 g"),  # Default font
+            NameObject("/DR"): dr_dict_ref  # Use indirect reference instead of direct dictionary
         })
 
         # Add AcroForm to the root object

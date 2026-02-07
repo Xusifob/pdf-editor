@@ -49,7 +49,9 @@
     "errorAddFailed": "Échec de l'ajout du champ",
     "errorDeleteFailed": "Échec de la suppression du champ",
     "errorFieldName": "Veuillez entrer un nom de champ",
-    "fieldsReordered": "Champs réorganisés !"
+    "fieldsReordered": "Champs réorganisés !",
+    "fontName": "Police",
+    "fontSize": "Taille de police"
   },
   "pdfCanvas": {
     "toolbar": {

@@ -27,6 +27,7 @@ For the fastest setup, follow these steps:
 - 📤 **PDF Upload**: Upload PDF files with drag-and-drop support
 - 🔍 **Field Extraction**: Automatically extract form fields from PDFs
 - ✏️ **Field Editing**: Update field properties (type, value, position, size)
+- 🔤 **Font Selection**: Customize font family (Helvetica, Times, Courier) and size (6-72pt) for text fields
 - ➕ **Add Fields**: Manually add new fields to PDFs
 - 🔄 **Field Reordering**: Drag and drop to reorder fields
 - 💾 **Save Changes**: Persist PDF field information
@@ -188,11 +189,24 @@ docker compose up --build
 5. **Reorder Fields**: Drag and drop fields to change their order
 6. **Delete Fields**: Remove unwanted fields with the "Delete" button
 
+## Third-Party Library Compatibility
+
+This application generates PDFs with proper font resource structures that are compatible with third-party PDF manipulation libraries like:
+
+- **SetaPDF (PHP)**: Can programmatically fill form fields
+- **Other PDF libraries**: Font resources are created as indirect objects following PDF specification best practices
+
+For details, see:
+- [SETAPDF_FIX.md](SETAPDF_FIX.md) - SetaPDF compatibility fix
+- [FONT_SELECTION.md](FONT_SELECTION.md) - Font selection feature documentation
+
 ## Future Enhancements
 
 - [ ] PDF rendering/preview
 - [ ] Visual field positioning on PDF canvas
 - [ ] Export modified PDFs
+- [ ] Additional fonts (bold, italic variants)
+- [ ] Font color selection
 - [ ] Database integration (PostgreSQL/MongoDB)
 - [ ] User authentication
 - [ ] Field validation rules
