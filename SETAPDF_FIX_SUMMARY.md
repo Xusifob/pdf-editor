@@ -7,49 +7,51 @@
 InvalidArgumentException: To initialize a new object $document parameter is not optional!
 ```
 
-**Root Cause**: Font resources in the PDF's AcroForm were stored as direct dictionaries instead of indirect object references, preventing third-party libraries from properly accessing them.
+**Root Cause**: The AcroForm dictionary itself was incorrectly added as an indirect object to the PDF catalog. According to PDF specifications and SetaPDF requirements, the AcroForm must be a **direct dictionary** in the catalog, while its child resources (DR, fonts) should be indirect objects.
 
 ## Solution Implemented
 
 ### Code Changes (backend/main.py)
 
-1. **Lines 737-745**: Create Helvetica font as an indirect object
+1. **Lines 758-782**: Create font objects as indirect objects
+   - Helvetica, Times, and Courier fonts created as indirect objects
    - Added WinAnsiEncoding for compatibility
-   - Store as indirect reference using `pdf_writer._add_object()`
+   - Store as indirect references using `pdf_writer._add_object()`
 
-2. **Lines 905-916**: Create Font and DR dictionaries as indirect objects
+2. **Lines 960-971**: Create Font and DR dictionaries as indirect objects
    - Font dictionary created as indirect object
    - DR (Default Resources) dictionary created as indirect object
-   - All references are now indirect, not direct dictionaries
+   - All font resources are indirect references
 
-3. **Line 923**: Use indirect reference in AcroForm
-   - Changed from direct dictionary to indirect reference
-   - `NameObject("/DR"): dr_dict_ref`
+3. **Lines 981-984**: Add AcroForm as DIRECT dictionary (THE FIX!)
+   - Changed from `pdf_writer._add_object(acro_form)` to direct assignment
+   - AcroForm is now a direct dictionary in the catalog
+   - DR remains as an indirect reference within AcroForm
 
 ### Key Changes
 
-**Before**:
+**Before (INCORRECT)**:
 ```python
-NameObject("/DR"): DictionaryObject({  # Direct dictionary - BAD
-    NameObject("/Font"): DictionaryObject({  # Direct dictionary - BAD
-        NameObject("/Helv"): DictionaryObject({  # Direct dictionary - BAD
-            NameObject("/Type"): NameObject("/Font"),
-            NameObject("/Subtype"): NameObject("/Type1"),
-            NameObject("/BaseFont"): NameObject("/Helvetica"),
-        })
-    })
-})
+# AcroForm added as indirect object - BAD!
+pdf_writer._root_object[NameObject("/AcroForm")] = pdf_writer._add_object(acro_form)
 ```
 
-**After**:
+This caused SetaPDF to fail because it expects AcroForm to be a direct dictionary in the catalog.
+
+**After (CORRECT)**:
 ```python
-# Create as indirect objects - GOOD
+# Create font and DR resources as indirect objects - GOOD
 helvetica_font_ref = pdf_writer._add_object(helvetica_font)
 font_dict_ref = pdf_writer._add_object(font_dict)
 dr_dict_ref = pdf_writer._add_object(dr_dict)
 
-# Use indirect references - GOOD
-NameObject("/DR"): dr_dict_ref
+# AcroForm with indirect DR reference
+acro_form.update({
+    NameObject("/DR"): dr_dict_ref  # DR is indirect - GOOD
+})
+
+# Add AcroForm as DIRECT dictionary - GOOD!
+pdf_writer._root_object[NameObject("/AcroForm")] = acro_form
 ```
 
 ## Testing
