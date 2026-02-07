@@ -978,8 +978,10 @@ async def download_pdf(pdf_id: str):
             NameObject("/DR"): dr_dict_ref  # Use indirect reference instead of direct dictionary
         })
 
-        # Add AcroForm to the root object
-        pdf_writer._root_object[NameObject("/AcroForm")] = pdf_writer._add_object(acro_form)
+        # Add AcroForm to the root object as a direct dictionary
+        # Note: AcroForm itself must be direct, not indirect, for SetaPDF compatibility
+        # The resources inside (DR, fonts) are indirect, which is correct
+        pdf_writer._root_object[NameObject("/AcroForm")] = acro_form
 
 
         # Write the modified PDF to bytes
