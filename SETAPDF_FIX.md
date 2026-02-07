@@ -19,89 +19,94 @@ SetaPDF/FormFiller/Field/Text.php -> setValue (line 126)
 
 ## Root Cause
 
-The PDF's font resources in the AcroForm dictionary were embedded as **direct dictionaries** instead of **indirect object references**. 
+The PDF's AcroForm dictionary itself was incorrectly added as an **indirect object** to the PDF catalog. According to PDF specifications and SetaPDF requirements, the AcroForm must be a **direct dictionary** in the catalog, while its child resources (DR, fonts) should be indirect objects.
 
-When third-party libraries like SetaPDF tried to access these font resources, they called `getIndirectObject()` which requires the resources to be properly referenced objects in the PDF structure, not inline dictionaries.
+When SetaPDF tried to access the AcroForm, it expected a direct dictionary but found an indirect object reference, which required a document parameter to dereference - hence the error message.
 
 ### Before (Problematic Structure)
 ```python
-NameObject("/DR"): DictionaryObject({
-    NameObject("/Font"): DictionaryObject({
-        NameObject("/Helv"): DictionaryObject({
-            NameObject("/Type"): NameObject("/Font"),
-            NameObject("/Subtype"): NameObject("/Type1"),
-            NameObject("/BaseFont"): NameObject("/Helvetica"),
-        })
-    })
-})
+# AcroForm added as indirect object - INCORRECT!
+pdf_writer._root_object[NameObject("/AcroForm")] = pdf_writer._add_object(acro_form)
 ```
 
 In this structure:
-- ❌ Font dictionary is a direct object
-- ❌ DR dictionary is a direct object  
-- ❌ Third-party libraries cannot call `getIndirectObject()` on these
-- ❌ Libraries require a document parameter to create new objects
+- ❌ AcroForm is an indirect object in the catalog
+- ❌ Third-party libraries expect AcroForm to be a direct dictionary
+- ❌ SetaPDF cannot access AcroForm without a document parameter
+- ❌ Causes "To initialize a new object $document parameter is not optional!" error
 
 ## Solution
 
-Convert all font resource dictionaries to **indirect object references** using `pdf_writer._add_object()`.
+The fix has two parts:
+1. Keep font resources and DR dictionary as indirect objects (this was already correct)
+2. **Make AcroForm a direct dictionary in the catalog** (this was the missing fix)
 
 ### After (Fixed Structure)
 ```python
-# 1. Create Helvetica font as indirect object
+# 1. Create font objects as indirect objects (correct)
 helvetica_font = DictionaryObject({
     NameObject("/Type"): NameObject("/Font"),
     NameObject("/Subtype"): NameObject("/Type1"),
     NameObject("/BaseFont"): NameObject("/Helvetica"),
-    NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),  # Added for compatibility
+    NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
 })
 helvetica_font_ref = pdf_writer._add_object(helvetica_font)
 
-# 2. Create Font dictionary as indirect object
+# 2. Create Font dictionary as indirect object (correct)
 font_dict = DictionaryObject({
     NameObject("/Helv"): helvetica_font_ref
 })
 font_dict_ref = pdf_writer._add_object(font_dict)
 
-# 3. Create DR dictionary as indirect object
+# 3. Create DR dictionary as indirect object (correct)
 dr_dict = DictionaryObject({
     NameObject("/Font"): font_dict_ref
 })
 dr_dict_ref = pdf_writer._add_object(dr_dict)
 
-# 4. Use indirect reference in AcroForm
-acro_form.update({
-    NameObject("/DR"): dr_dict_ref  # Indirect reference instead of direct dictionary
+# 4. Create AcroForm with indirect DR reference
+acro_form = DictionaryObject({
+    NameObject("/Fields"): field_refs,
+    NameObject("/DR"): dr_dict_ref  # DR is indirect - correct
 })
+
+# 5. Add AcroForm as DIRECT dictionary (THE FIX!)
+pdf_writer._root_object[NameObject("/AcroForm")] = acro_form  # Direct, not indirect!
 ```
 
 In this structure:
-- ✅ All font resources are indirect objects
-- ✅ Libraries can call `getIndirectObject()` successfully
-- ✅ No document parameter required
+- ✅ AcroForm is a direct dictionary in the catalog
+- ✅ DR dictionary is an indirect object (referenced by AcroForm)
+- ✅ Font dictionaries are indirect objects (referenced by DR)
+- ✅ Font resources are indirect objects (referenced by font dict)
+- ✅ SetaPDF can access AcroForm directly without document parameter
 - ✅ Standard WinAnsiEncoding for better compatibility
 
 ## Benefits
 
-1. **SetaPDF Compatibility**: The `getIndirectObject()` call now works without requiring a document parameter
-2. **Standard Compliance**: Follows PDF specification best practices for resource references
-3. **Better Encoding**: WinAnsiEncoding ensures consistent character rendering across tools
-4. **Third-Party Library Support**: Other PDF manipulation libraries will also benefit from proper indirect references
-5. **Backwards Compatible**: Existing functionality remains unchanged
+1. **SetaPDF Compatibility**: AcroForm is now directly accessible without requiring a document parameter
+2. **Standards Compliance**: Follows PDF specification where AcroForm in catalog should be direct
+3. **Proper Resource Management**: Font resources and DR remain as indirect objects (correct)
+4. **Better Encoding**: WinAnsiEncoding ensures consistent character rendering across tools
+5. **Third-Party Library Support**: Other PDF manipulation libraries also benefit from correct structure
+6. **Backwards Compatible**: Existing functionality remains unchanged
 
 ## Testing
 
 Comprehensive tests verify:
-- ✅ Font resources are created as indirect objects
-- ✅ DR dictionary is an indirect object
-- ✅ Font dictionary is an indirect object
-- ✅ Helvetica font is an indirect object
+- ✅ AcroForm is a direct dictionary in the catalog (not indirect)
+- ✅ DR dictionary is an indirect object (referenced by AcroForm)
+- ✅ Font dictionary is an indirect object (referenced by DR)
+- ✅ Individual fonts are indirect objects (referenced by font dict)
 - ✅ All references can be resolved properly
-- ✅ Old structure (direct dictionaries) is confirmed to cause the issue
+- ✅ SetaPDF can access AcroForm without document parameter
 
 ## Files Modified
 
-- `backend/main.py`: Modified PDF generation in `download_pdf()` endpoint (lines 733-924)
+- `backend/main.py`: Modified PDF generation in `download_pdf()` endpoint
+  - Lines 758-782: Font objects created as indirect objects
+  - Lines 960-971: Font and DR dictionaries created as indirect objects  
+  - Lines 981-984: **AcroForm added as direct dictionary (THE FIX!)**
 
 ## Related Issues
 
@@ -109,8 +114,9 @@ This fix resolves the SetaPDF form filling error that occurred when users attemp
 
 ## Future Considerations
 
-When adding new font types or resources to the PDF generation:
-1. Always create resources as indirect objects using `pdf_writer._add_object()`
-2. Use indirect references, not direct dictionaries
-3. Include proper encoding specifications (e.g., WinAnsiEncoding)
-4. Test with third-party PDF libraries to ensure compatibility
+When modifying PDF generation:
+1. Always keep AcroForm as a **direct dictionary** in the catalog (do not use `_add_object()`)
+2. Keep resources (fonts, DR) as **indirect objects** using `pdf_writer._add_object()`
+3. Use indirect references in AcroForm's `/DR` entry
+4. Include proper encoding specifications (e.g., WinAnsiEncoding)
+5. Test with third-party PDF libraries to ensure compatibility
