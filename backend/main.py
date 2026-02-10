@@ -794,6 +794,22 @@ async def download_pdf(pdf_id: str):
             "Times": "/Times",
             "Courier": "/Cour",
         }
+        
+        # Create the Font dictionary as an indirect object with all available fonts
+        # This is created early so it can be referenced by individual field widgets
+        font_dict = DictionaryObject({
+            NameObject("/Helv"): helvetica_font_ref,
+            NameObject("/Times"): times_font_ref,
+            NameObject("/Cour"): courier_font_ref,
+        })
+        font_dict_ref = pdf_writer._add_object(font_dict)
+
+        # Create the DR (Default Resources) dictionary with proper indirect references
+        # This is created early so it can be referenced by individual field widgets
+        dr_dict = DictionaryObject({
+            NameObject("/Font"): font_dict_ref
+        })
+        dr_dict_ref = pdf_writer._add_object(dr_dict)
 
         # Process each page and add form fields
         for page_num in range(len(pdf_writer.pages)):
@@ -924,6 +940,7 @@ async def download_pdf(pdf_id: str):
                         NameObject("/DV"): TextStringObject(field_value) if field_value else TextStringObject(""),
                         NameObject("/Ff"): NumberObject(field_flags),  # Multiline flag
                         NameObject("/DA"): TextStringObject(da_string),  # Default appearance with font
+                        NameObject("/DR"): dr_dict_ref,  # Add font resources to field for SetaPDF compatibility
                         NameObject("/Q"): NumberObject(0),  # Left alignment
                     }
                     if max_length:
@@ -945,6 +962,7 @@ async def download_pdf(pdf_id: str):
                         NameObject("/DV"): TextStringObject(field_value) if field_value else TextStringObject(""),
                         NameObject("/Ff"): NumberObject(field_flags),
                         NameObject("/DA"): TextStringObject(da_string),  # Default appearance with font
+                        NameObject("/DR"): dr_dict_ref,  # Add font resources to field for SetaPDF compatibility
                         NameObject("/Q"): NumberObject(0),  # Left alignment
                     }
                     if max_length and max_length > 0:
@@ -955,20 +973,6 @@ async def download_pdf(pdf_id: str):
                 field_ref = pdf_writer._add_object(field_dict)
                 page["/Annots"].append(field_ref)
                 field_refs.append(field_ref)
-
-        # Create the Font dictionary as an indirect object with all available fonts
-        font_dict = DictionaryObject({
-            NameObject("/Helv"): helvetica_font_ref,
-            NameObject("/Times"): times_font_ref,
-            NameObject("/Cour"): courier_font_ref,
-        })
-        font_dict_ref = pdf_writer._add_object(font_dict)
-
-        # Create the DR (Default Resources) dictionary with proper indirect references
-        dr_dict = DictionaryObject({
-            NameObject("/Font"): font_dict_ref
-        })
-        dr_dict_ref = pdf_writer._add_object(dr_dict)
 
         # Set up AcroForm in the document catalog
         acro_form.update({
