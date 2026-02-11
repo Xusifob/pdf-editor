@@ -153,13 +153,16 @@ Each page that contains form fields must have font resources in its `/Resources/
 if "/Resources" not in page:
     page[NameObject("/Resources")] = DictionaryObject()
 
-if "/Font" not in page["/Resources"]:
-    page["/Resources"][NameObject("/Font")] = DictionaryObject()
+# Get or create the Font dictionary in the page's Resources
+page_resources = page["/Resources"]
+if "/Font" not in page_resources:
+    page_resources[NameObject("/Font")] = DictionaryObject()
 
 # Add all fonts to the page's font resources
-page["/Resources"]["/Font"][NameObject("/Helv")] = helvetica_font_ref
-page["/Resources"]["/Font"][NameObject("/Times")] = times_font_ref
-page["/Resources"]["/Font"][NameObject("/Cour")] = courier_font_ref
+page_font_dict = page_resources["/Font"]
+page_font_dict[NameObject("/Helv")] = helvetica_font_ref
+page_font_dict[NameObject("/Times")] = times_font_ref
+page_font_dict[NameObject("/Cour")] = courier_font_ref
 ```
 
 **Benefits of Solution 3:**
