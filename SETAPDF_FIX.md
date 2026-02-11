@@ -19,7 +19,7 @@ SetaPDF/FormFiller/Field/Text.php -> setValue (line 126)
 
 ## Root Causes
 
-There were **two separate issues** that needed to be fixed:
+There were **three separate issues** that needed to be fixed:
 
 ### Issue 1: AcroForm as Indirect Object (Fixed Previously)
 
@@ -27,7 +27,7 @@ The PDF's AcroForm dictionary itself was incorrectly added as an **indirect obje
 
 When SetaPDF tried to access the AcroForm, it expected a direct dictionary but found an indirect object reference, which required a document parameter to dereference - hence the error message.
 
-### Issue 2: Missing /DR in Field Widgets (Fixed in This Update)
+### Issue 2: Missing /DR in Field Widgets (Fixed Previously)
 
 Even after fixing Issue 1, some users still encountered the same error. The root cause was that **individual field widget annotations did not have their own `/DR` (Default Resources) reference**.
 
@@ -35,6 +35,16 @@ When SetaPDF tries to recreate the appearance of a field during `setValue()`:
 1. It looks for the font referenced in the field's `/DA` (Default Appearance) string (e.g., `/Helv 12 Tf 0 g`)
 2. It tries to resolve the font from the **field's own `/DR`** first
 3. If the field doesn't have `/DR`, SetaPDF tries to get an indirect object reference without a document parameter, causing the error
+
+### Issue 3: Missing Fonts in Page Resources (Fixed in This Update)
+
+Even after fixing Issues 1 and 2, some users still encountered the same error. The root cause was that **fonts were not available in the page's `/Resources/Font` dictionary**.
+
+When SetaPDF tries to render field appearances on a canvas (Canvas.php line 338):
+1. It attempts to add font resources to the canvas using `addResource()` (Canvas/Text.php line 186)
+2. SetaPDF looks for font resources in the **page's `/Resources/Font` dictionary** first
+3. If the fonts are not in the page resources, SetaPDF cannot properly resolve the font object, causing the error
+4. Without access to fonts in the page resources, `getIndirectObject()` fails when trying to instantiate font objects for canvas rendering
 
 ## Solutions
 
@@ -130,15 +140,50 @@ text_props = {
 - ✅ Follows PDF best practices for field-level resources
 - ✅ Compatible with all third-party PDF libraries
 
+### Solution 3: Add Fonts to Page Resources (Implemented in This Update)
+
+Each page that contains form fields must have font resources in its `/Resources/Font` dictionary. This allows SetaPDF to resolve fonts when rendering field appearances on a canvas.
+
+**Key Changes:**
+
+1. **Add fonts to page resources** (for each page with fields):
+```python
+# Add font resources to page's Resources dictionary
+# This is required for SetaPDF to resolve fonts when recreating field appearances
+if "/Resources" not in page:
+    page[NameObject("/Resources")] = DictionaryObject()
+
+# Get or create the Font dictionary in the page's Resources
+page_resources = page["/Resources"]
+if "/Font" not in page_resources:
+    page_resources[NameObject("/Font")] = DictionaryObject()
+
+# Add all fonts to the page's font resources
+page_font_dict = page_resources["/Font"]
+page_font_dict[NameObject("/Helv")] = helvetica_font_ref
+page_font_dict[NameObject("/Times")] = times_font_ref
+page_font_dict[NameObject("/Cour")] = courier_font_ref
+```
+
+**Benefits of Solution 3:**
+- ✅ SetaPDF can resolve fonts from page resources when rendering on canvas
+- ✅ `Canvas.addResource()` can successfully add font resources
+- ✅ `Canvas/Text.setFont()` works without document parameter errors
+- ✅ Follows PDF best practices for page-level resources
+- ✅ Enables proper canvas rendering for field appearance streams
+- ✅ Compatible with all third-party PDF libraries that use canvas rendering
+
 ## Benefits
 
 1. **SetaPDF Compatibility**: AcroForm is now directly accessible without requiring a document parameter
 2. **Field-Level Font Resolution**: Each field can independently resolve font resources
-3. **Standards Compliance**: Follows PDF specification where AcroForm in catalog should be direct
-4. **Proper Resource Management**: Font resources and DR remain as indirect objects (correct)
-5. **Better Encoding**: WinAnsiEncoding ensures consistent character rendering across tools
-6. **Third-Party Library Support**: Other PDF manipulation libraries also benefit from correct structure
-7. **Backwards Compatible**: Existing functionality remains unchanged
+3. **Page-Level Font Resolution**: Pages can resolve fonts for canvas rendering operations
+4. **Standards Compliance**: Follows PDF specification where AcroForm in catalog should be direct
+5. **Proper Resource Management**: Font resources and DR remain as indirect objects (correct)
+6. **Better Encoding**: WinAnsiEncoding ensures consistent character rendering across tools
+7. **Third-Party Library Support**: Other PDF manipulation libraries also benefit from correct structure
+8. **Backwards Compatible**: Existing functionality remains unchanged
+9. **Complete Font Access Chain**: Fonts accessible from AcroForm, field widgets, and page resources
 
 ## Validation
 
@@ -148,8 +193,10 @@ The fix was validated through manual verification of the PDF structure:
 - ✅ Font dictionary is an indirect object (referenced by DR)
 - ✅ Individual fonts are indirect objects (referenced by font dict)
 - ✅ **Each text field widget has /DR as indirect reference**
+- ✅ **Each page with fields has /Resources/Font dictionary**
+- ✅ **Page /Resources/Font references all fonts (Helv, Times, Cour)**
 - ✅ All references can be resolved properly
-- ✅ SetaPDF can access AcroForm and field fonts without document parameter
+- ✅ SetaPDF can access fonts from page, field, and AcroForm without document parameter
 
 ### Manual Verification Steps
 
@@ -176,24 +223,27 @@ $document->save()->finish();
 
 - `backend/main.py`: Modified PDF generation in `download_pdf()` endpoint
   - Lines 758-782: Font objects created as indirect objects
-  - Lines 798-812: **Font and DR dictionaries created early (before field loop) - NEW FIX!**
-  - Line 943: **Added /DR reference to Textarea fields - NEW FIX!**
-  - Line 965: **Added /DR reference to Text/Date fields - NEW FIX!**
-  - Lines 977-984: AcroForm added as direct dictionary (previous fix)
+  - Lines 798-812: Font and DR dictionaries created early (before field loop)
+  - Lines 822-835: **Added font resources to page /Resources/Font dictionary - NEW FIX!**
+  - Line 943: Added /DR reference to Textarea fields
+  - Line 965: Added /DR reference to Text/Date fields
+  - Lines 977-984: AcroForm added as direct dictionary
 
 ## Related Issues
 
-This fix resolves the SetaPDF form filling error that occurred when users attempted to programmatically fill form fields in generated PDFs using PHP libraries. The issue manifested in two ways:
+This fix resolves the SetaPDF form filling error that occurred when users attempted to programmatically fill form fields in generated PDFs using PHP libraries. The issue manifested in three ways:
 1. Initial issue: AcroForm was indirect instead of direct
-2. Subsequent issue: Fields lacked their own /DR references
+2. Second issue: Fields lacked their own /DR references
+3. Third issue: Pages lacked font resources needed for canvas rendering
 
 ## Future Considerations
 
 When modifying PDF generation:
 1. Always keep AcroForm as a **direct dictionary** in the catalog (do not use `_add_object()`)
 2. Keep resources (fonts, DR) as **indirect objects** using `pdf_writer._add_object()`
-3. **Add /DR reference to each text field widget** that uses fonts
-4. Create font and DR dictionaries **before** processing fields so they can be referenced
-5. Use indirect references in AcroForm's `/DR` entry
-6. Include proper encoding specifications (e.g., WinAnsiEncoding)
-7. Test with third-party PDF libraries to ensure compatibility
+3. **Add font resources to each page's /Resources/Font dictionary** for pages with form fields
+4. **Add /DR reference to each text field widget** that uses fonts
+5. Create font and DR dictionaries **before** processing fields so they can be referenced
+6. Use indirect references in AcroForm's `/DR` entry
+7. Include proper encoding specifications (e.g., WinAnsiEncoding)
+8. Test with third-party PDF libraries to ensure compatibility

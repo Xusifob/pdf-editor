@@ -819,6 +819,23 @@ async def download_pdf(pdf_id: str):
             page = pdf_writer.pages[page_num]
             page_height = float(page.mediabox.height)
 
+            # Add font resources to page's Resources dictionary
+            # This is required for SetaPDF to resolve fonts when recreating field appearances
+            # Note: pypdf allows string literals for reads/checks, NameObject for new key creation
+            if "/Resources" not in page:
+                page[NameObject("/Resources")] = DictionaryObject()
+            
+            # Get or create the Font dictionary in the page's Resources
+            page_resources = page["/Resources"]
+            if "/Font" not in page_resources:
+                page_resources[NameObject("/Font")] = DictionaryObject()
+            
+            # Add all fonts to the page's font resources
+            page_font_dict = page_resources["/Font"]
+            page_font_dict[NameObject("/Helv")] = helvetica_font_ref
+            page_font_dict[NameObject("/Times")] = times_font_ref
+            page_font_dict[NameObject("/Cour")] = courier_font_ref
+
             # Initialize annotations array if not present
             if "/Annots" not in page:
                 page[NameObject("/Annots")] = ArrayObject()
