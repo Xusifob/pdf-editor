@@ -140,9 +140,9 @@ text_props = {
 6. **Third-Party Library Support**: Other PDF manipulation libraries also benefit from correct structure
 7. **Backwards Compatible**: Existing functionality remains unchanged
 
-## Testing
+## Validation
 
-Comprehensive tests verify:
+The fix was validated through manual verification of the PDF structure:
 - ✅ AcroForm is a direct dictionary in the catalog (not indirect)
 - ✅ DR dictionary is an indirect object (referenced by AcroForm)
 - ✅ Font dictionary is an indirect object (referenced by DR)
@@ -150,6 +150,27 @@ Comprehensive tests verify:
 - ✅ **Each text field widget has /DR as indirect reference**
 - ✅ All references can be resolved properly
 - ✅ SetaPDF can access AcroForm and field fonts without document parameter
+
+### Manual Verification Steps
+
+To verify the fix works correctly:
+
+1. Generate a PDF with form fields using this application
+2. Download the PDF with the form fields
+3. Use SetaPDF (or similar library) to programmatically fill the form fields
+4. The `setValue()` operation should complete without the initialization error
+
+### Example PHP Verification (SetaPDF)
+```php
+// This now works without errors
+$document = SetaPDF_Core_Document::loadByFilename('generated.pdf');
+$formFiller = new SetaPDF_FormFiller($document);
+
+$field = $formFiller->getFields()->get('FieldName');
+$field->setValue('New Value');  // No longer throws InvalidArgumentException
+
+$document->save()->finish();
+```
 
 ## Files Modified
 
