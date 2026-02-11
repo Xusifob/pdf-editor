@@ -821,6 +821,7 @@ async def download_pdf(pdf_id: str):
 
             # Add font resources to page's Resources dictionary
             # This is required for SetaPDF to resolve fonts when recreating field appearances
+            # Note: pypdf allows string literals for reads/checks, NameObject for new key creation
             if "/Resources" not in page:
                 page[NameObject("/Resources")] = DictionaryObject()
             
