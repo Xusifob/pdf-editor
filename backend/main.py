@@ -824,15 +824,13 @@ async def download_pdf(pdf_id: str):
             if "/Resources" not in page:
                 page[NameObject("/Resources")] = DictionaryObject()
             
-            page_resources = page["/Resources"]
-            if "/Font" not in page_resources:
-                page_resources[NameObject("/Font")] = DictionaryObject()
+            if "/Font" not in page["/Resources"]:
+                page["/Resources"][NameObject("/Font")] = DictionaryObject()
             
             # Add all fonts to the page's font resources
-            page_font_dict = page_resources["/Font"]
-            page_font_dict[NameObject("/Helv")] = helvetica_font_ref
-            page_font_dict[NameObject("/Times")] = times_font_ref
-            page_font_dict[NameObject("/Cour")] = courier_font_ref
+            page["/Resources"]["/Font"][NameObject("/Helv")] = helvetica_font_ref
+            page["/Resources"]["/Font"][NameObject("/Times")] = times_font_ref
+            page["/Resources"]["/Font"][NameObject("/Cour")] = courier_font_ref
 
             # Initialize annotations array if not present
             if "/Annots" not in page:
